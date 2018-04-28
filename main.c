@@ -8,6 +8,6 @@ int main() {
     printf("Hello, World!\n");
     printf("Hello, World!\n");
 
-	//system("pause");//for visual studio
+	system("pause");//for visual studio
     return 0;
 }
