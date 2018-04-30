@@ -36,3 +36,7 @@ void DevWriteBlock(int blkno, char *pBuf)
 	__DevMoveBlock(blkno);
 	write(fd, pBuf, BLOCK_SIZE);
 }
+void DevCloseDisk(void) //가상 디스크를 생성하지는 않고 단지 open하는 함수. 이전에 저장된 내용을 그대로 저장하고 있음.
+{
+	fd = close(fd);
+}

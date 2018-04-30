@@ -1,3 +1,4 @@
+//-fs.c: 과제1에서 구현한 코드를 이 파일에 넣고, 빈 함수를 구현하면 됩니다.
 #include <stdio.h>
 #include <stdlib.h>
 #include "Disk.h"
@@ -50,7 +51,7 @@ void FileSysInit(void) //Success
     //     buf[i] = 0;
     // }
     memset(buf, 0, BLOCK_SIZE); // memset을 통해서 모든 메모리를 0으로 만듭니다.
-    for (int i = 0; i < 7; i++) //1부터 6까지라서
+    for (int i = 0; i < 512; i++) //512 블록까지 초기화 하라는건가?
     {
         DevWriteBlock(i, buf);
     }
