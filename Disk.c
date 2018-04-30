@@ -5,8 +5,8 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <assert.h>
-//#include <unistd.h>//for visual studio
-#include "disk.h"
+#include <unistd.h>//for visual studio
+#include "Disk.h"
 
 int fd;
 

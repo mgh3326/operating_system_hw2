@@ -3,4 +3,4 @@ project(operating_system_hw2 C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(operating_system_hw2 main.c fs.c fs.h mount.c Disk.h)
+add_executable(operating_system_hw2 main.c fs.c fs.h mount.c Disk.h Disk.c)
