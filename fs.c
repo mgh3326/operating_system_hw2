@@ -30,6 +30,7 @@ int RemoveFile(const char *szFileName)
 
 int MakeDir(const char *szDirName)
 {
+    
 }
 
 int RemoveDir(const char *szDirName)
