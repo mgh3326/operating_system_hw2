@@ -8,9 +8,10 @@
 #define INODE_SIZE 64
 
 int main(){
-    printf("\tmy test! ==\n");
+    printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
     Unmount();
+    printf("\tmain finish\n");
 }
 //char IsDigitOne(unsigned char *block, int bitIndex);
 //

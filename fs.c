@@ -8,37 +8,38 @@
 
 FileDescTable *pFileDescTable = NULL;
 
-int OpenFile(const char *szFileName, OpenFlag flag)
-{
+int OpenFile(const char *szFileName, OpenFlag flag) {
 }
 
-int WriteFile(int fileDesc, char *pBuffer, int length)
-{
+int WriteFile(int fileDesc, char *pBuffer, int length) {
 }
 
-int ReadFile(int fileDesc, char *pBuffer, int length)
-{
+int ReadFile(int fileDesc, char *pBuffer, int length) {
 }
 
-int CloseFile(int fileDesc)
-{
+int CloseFile(int fileDesc) {
 }
 
-int RemoveFile(const char *szFileName)
-{
+int RemoveFile(const char *szFileName) {
 }
 
-int MakeDir(const char *szDirName)
-{
-    
+int MakeDir(const char *szDirName) {
+    DirEntry *pDirEntry = NULL;
+    pDirEntry = malloc(sizeof *pDirEntry); // 이렇게 할당 malloc 해주면 되는건가
+//    strncpy(pDirEntry->name, szDirName,12);
+    Inode *pInode = NULL;
+    pInode = malloc(sizeof(pInode));
+    strcpy(pDirEntry->name, szDirName);
+    pDirEntry->inodeNum = GetFreeInodeNum();
+    SetInodeBitmap(pDirEntry->inodeNum);
+    PutInode(pDirEntry->inodeNum, pInode);//pInode 내용을 넣어주어야겠다.
+
 }
 
-int RemoveDir(const char *szDirName)
-{
+int RemoveDir(const char *szDirName) {
 }
 
-void EnumerateDirStatus(const char *szDirName, DirEntry *pDirEntry, int *pNum)
-{
+void EnumerateDirStatus(const char *szDirName, DirEntry *pDirEntry, int *pNum) {
 }
 
 void FileSysInit(void) //Success
@@ -58,8 +59,8 @@ void FileSysInit(void) //Success
     }
     free(buf);
 }
-void SetInodeBitmap(int inodeno)
-{
+
+void SetInodeBitmap(int inodeno) {
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
     DevReadBlock(INODE_BITMAP_BLK_NUM, buf);
@@ -68,8 +69,7 @@ void SetInodeBitmap(int inodeno)
     free(buf);
 }
 
-void ResetInodeBitmap(int inodeno)
-{
+void ResetInodeBitmap(int inodeno) {
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
     DevReadBlock(INODE_BITMAP_BLK_NUM, buf);
@@ -78,8 +78,7 @@ void ResetInodeBitmap(int inodeno)
     free(buf);
 }
 
-void SetBlockBitmap(int blkno)
-{
+void SetBlockBitmap(int blkno) {
 
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
@@ -89,8 +88,7 @@ void SetBlockBitmap(int blkno)
     free(buf);
 }
 
-void ResetBlockBitmap(int blkno)
-{
+void ResetBlockBitmap(int blkno) {
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
     DevReadBlock(BLOCK_BITMAP_BLK_NUM, buf);
@@ -99,8 +97,7 @@ void ResetBlockBitmap(int blkno)
     free(buf);
 }
 
-void PutInode(int inodeno, Inode *pInode)
-{
+void PutInode(int inodeno, Inode *pInode) {
 
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
@@ -110,8 +107,7 @@ void PutInode(int inodeno, Inode *pInode)
     free(buf);
 }
 
-void GetInode(int inodeno, Inode *pInode)
-{
+void GetInode(int inodeno, Inode *pInode) {
 
     char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
@@ -120,18 +116,15 @@ void GetInode(int inodeno, Inode *pInode)
     free(buf);
 }
 
-int GetFreeInodeNum(void)
-{
+int GetFreeInodeNum(void) {
     char *buf = malloc(BLOCK_SIZE);
     ////DevOpenDisk();
     DevReadBlock(INODE_BITMAP_BLK_NUM, buf);
 
-    for (int i = 0; i < BLOCK_SIZE; i++)
-    {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
         if (buf[i] == -1) // if 11111111 => continue
             continue;
-        for (int j = 0; j < 8; j++)
-        {
+        for (int j = 0; j < 8; j++) {
             if ((buf[i] << j & 128) == 0) // >> 연산자가 & 보다 우선순위가 높구나
             {
                 free(buf);
@@ -143,18 +136,15 @@ int GetFreeInodeNum(void)
     return -1; //실패 했을 경우
 }
 
-int GetFreeBlockNum(void)
-{
+int GetFreeBlockNum(void) {
     char *buf = malloc(BLOCK_SIZE);
     DevReadBlock(BLOCK_BITMAP_BLK_NUM, buf);
 
-    for (int i = 0; i < BLOCK_SIZE; i++)
-    {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
         if (buf[i] == -1) // if 11111111 => continue
             continue;
 
-        for (int j = 0; j < 8; j++)
-        {
+        for (int j = 0; j < 8; j++) {
             if ((buf[i] << j & 128) == 0) // >> 연산자가 & 보다 우선순위가 높구나
             {
                 free(buf);
