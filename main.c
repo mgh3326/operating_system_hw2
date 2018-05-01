@@ -7,7 +7,7 @@
 
 #define INODE_SIZE 64
 
-int main(){
+int main() {
     printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
 

@@ -11,5 +11,6 @@ extern void DevOpenDisk(void);
 extern void DevReadBlock(int blkno, char *pBuf);
 
 extern void DevWriteBlock(int blkno, char *pBuf);
+
 extern void DevCloseDisk(void); //내가 임의로 추가함
 #endif /* __DISK_H__ */

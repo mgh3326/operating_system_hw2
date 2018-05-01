@@ -31,9 +31,8 @@ int MakeDir(const char *szDirName) {
     //    strncpy(pDirEntry->name, szDirName,12);
     strncpy(pDirEntry->name, szDirName, sizeof(pDirEntry->name) - 1);//strcpy는 안좋다니까 strncpy로 함
     pDirEntry->inodeNum = GetFreeInodeNum();
-    pInode->size=1;//이게 바이트 크기인가
-    pInode->type=FILE_TYPE_DIR;
-
+    pInode->size = 1;//이게 바이트 크기인가
+    pInode->type = FILE_TYPE_DIR;
 
 
     SetInodeBitmap(pDirEntry->inodeNum);
