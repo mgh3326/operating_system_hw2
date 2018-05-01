@@ -41,8 +41,7 @@ typedef enum __fileMode {
     FILE_MODE_EXEC
 } FileMode;
 
-typedef struct __dirEntry
-{
+typedef struct __dirEntry {
     char name[MAX_NAME_LEN]; // file name
     int inodeNum;
 } DirEntry;
@@ -52,8 +51,7 @@ typedef enum __mountType {
     MT_TYPE_READWRITE
 } MountType;
 
-typedef struct _FileSysInfo
-{
+typedef struct _FileSysInfo {
     int blocks;           // 디스크에 저장된 전체 블록 개수
     int rootInodeNum;     // 루트 inode의 번호
     int diskCapacity;     // 디스크 용량 (Byte 단위)
@@ -66,35 +64,41 @@ typedef struct _FileSysInfo
     int dataReionBlock;   // data region의 시작 블록 번호
 } FileSysInfo;
 
-typedef struct _Inode
-{
+typedef struct _Inode {
     short size;                           // 파일 크기
     short type;                           // 파일 타입
     int dirBlkPtr[NUM_OF_DIRECT_BLK_PTR]; // Direct block pointers
     int indirBlkPointer;                  // Single indirect block pointer
 } Inode;
 
-typedef struct __fileDesc
-{
+typedef struct __fileDesc {
     int bUsed;
     int fileOffset;
     int inodeNum;
 } FileDesc;
 
-typedef struct __fileDescTable
-{
+typedef struct __fileDescTable {
     FileDesc file[MAX_FD_ENTRY_LEN];
 } FileDescTable;
 
 extern int OpenFile(const char *szFileName, OpenFlag flag);
+
 extern int WriteFile(int fileDesc, char *pBuffer, int length);
+
 extern int ReadFile(int fileDesc, char *pBuffer, int length);
+
 extern int CloseFile(int fileDesc);
+
 extern int RemoveFile(const char *szFileName);
+
 extern int MakeDir(const char *szDirName);
+
 extern int RemoveDir(const char *szDirName);
+
 extern void EnumerateDirStatus(const char *szDirName, DirEntry *pDirEntry, int *pNum);
+
 extern void Mount(MountType type);
+
 extern void Unmount(void);
 
 extern FileDescTable *pFileDescTable;
@@ -103,13 +107,21 @@ extern FileSysInfo *pFileSysInfo;
 /*  File system internal functions */
 
 void FileSysInit(void);
+
 void SetInodeBitmap(int inodeno);
+
 void ResetInodeBitmap(int inodeno);
+
 void SetBlockBitmap(int blkno);
+
 void ResetBlockBitmap(int blkno);
+
 void PutInode(int inodeno, Inode *pInode);
+
 void GetInode(int inodeno, Inode *pInode);
+
 int GetFreeInodeNum(void);
+
 int GetFreeBlockNum(void);
 
 #endif /* FILESYSTEM_H_ */

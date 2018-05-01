@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "Disk.h"
 #include "fs.h"
-#include <stdlib.h>
 #include <string.h>
 
 FileDescTable *pFileDescTable = NULL;
@@ -26,13 +25,20 @@ int RemoveFile(const char *szFileName) {
 int MakeDir(const char *szDirName) {
     DirEntry *pDirEntry = NULL;
     pDirEntry = malloc(sizeof *pDirEntry); // 이렇게 할당 malloc 해주면 되는건가
-//    strncpy(pDirEntry->name, szDirName,12);
+
     Inode *pInode = NULL;
     pInode = malloc(sizeof(pInode));
-    strcpy(pDirEntry->name, szDirName);
+    //    strncpy(pDirEntry->name, szDirName,12);
+    strncpy(pDirEntry->name, szDirName, sizeof(pDirEntry->name) - 1);//strcpy는 안좋다니까 strncpy로 함
     pDirEntry->inodeNum = GetFreeInodeNum();
+    pInode->size=1;//이게 바이트 크기인가
+    pInode->type=FILE_TYPE_DIR;
+
+
+
     SetInodeBitmap(pDirEntry->inodeNum);
     PutInode(pDirEntry->inodeNum, pInode);//pInode 내용을 넣어주어야겠다.
+    return 0;
 
 }
 

@@ -10,6 +10,7 @@
 int main(){
     printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
+
     Unmount();
     printf("\tmain finish\n");
 }
