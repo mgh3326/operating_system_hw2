@@ -30,6 +30,8 @@ void DevReadBlock(int blkno, char *pBuf) {
 }
 
 void DevWriteBlock(int blkno, char *pBuf) {
+//    DirEntry* p = (DirEntry*)pBuf;
+
     __DevMoveBlock(blkno);
     write(fd, pBuf, BLOCK_SIZE);
 }

@@ -38,6 +38,7 @@ void Mount(MountType type) {
         strncpy(pDirEntry[0]->name, ".", sizeof(pDirEntry[0]->name) - 1);//strcpy는 안좋다니까 strncpy로 함
         DevWriteBlock(GetFreeBlockNum() + 19, (char *) pDirEntry);//이러면 전달 될라나
         char *buf = malloc(BLOCK_SIZE);//(7) Block 크기의 메모리 할당
+
         //(8) FileSysInfo으로 형 변환함.
         //디렉토리 한 개 할당,
         //블록 한 개 할당하기 때문에
@@ -45,7 +46,10 @@ void Mount(MountType type) {
         pFileSysInfo->numAllocBlocks++;
         pFileSysInfo->numFreeBlocks--;
         pFileSysInfo->numAllocInodes++;
-        buf = (void *) pFileSysInfo;
+//        DirEntry* p = (DirEntry*)pBuf;
+        FileSysInfo *pbuf = (FileSysInfo *) buf;//형변환 완료 오예
+        pbuf = pFileSysInfo;
+
 //(9) 해당 블록을 DevWriteBlock를
 //사용하여 Block 0에 저장
         DevWriteBlock(0, buf);//이러면 전달 될라나
