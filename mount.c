@@ -27,15 +27,15 @@ void Mount(MountType type) {
         pFileSysInfo->inodeListBlock = INODELIST_BLK_FIRST;
         pFileSysInfo->dataReionBlock = (int) (pow(2, 12) - 19);
         int num = GetFreeBlockNum() + 19;// 이렇게 해서 19가 나오게 하는게 맞나
-        DirEntry *pDirEntry = malloc(BLOCK_SIZE);
-//        DirEntry *pDirEntry = NULL;
-        DirEntry temp[4];
-//        pDirEntry[4] = malloc(sizeof(BLOCK_SIZE)); // 이렇게 할당 malloc 해주면 되는건가
-        pDirEntry =  temp;
-//        buf[0].inodeNum = 0;
-//        strncpy(pDirEntry->name, szDirName, sizeof(pDirEntry->name) - 1);//strcpy는 안좋다니까 strncpy로 함
-        pDirEntry[0].inodeNum = 0;//된다 된다
-        strncpy(pDirEntry[0].name, "", sizeof(pDirEntry[0].name) - 1);//strcpy는 안좋다니까 strncpy로 함
+        DirEntry *pDirEntry[4];    // 크기가 3인 구조체 포인터 배열 선언
+        // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
+        for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++)    // 요소 개수만큼 반복
+        {
+            pDirEntry[i] = malloc(sizeof(DirEntry));    // 각 요소에 구조체 크기만큼 메모리 할당
+        }//https://dojang.io/mod/page/view.php?id=447 여기서 보고 따라함
+        pDirEntry[0]->inodeNum = GetFreeInodeNum();//된다 된다
+        strncpy(pDirEntry[0]->name, ".", sizeof(pDirEntry[0]->name) - 1);//strcpy는 안좋다니까 strncpy로 함
+
 
     } else if (type == MT_TYPE_READWRITE) {
         DevOpenDisk();
