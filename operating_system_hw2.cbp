@@ -76,10 +76,10 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="C:/Users/mgh33/Dropbox/hw2_operating_system/Disk.c">
+		<Unit filename="C:/Users/mgh33/Dropbox/hw2_operating_system/disk.c">
 			<Option target="operating_system_hw2"/>
 		</Unit>
-		<Unit filename="C:/Users/mgh33/Dropbox/hw2_operating_system/Disk.h">
+		<Unit filename="C:/Users/mgh33/Dropbox/hw2_operating_system/disk.h">
 			<Option target="operating_system_hw2"/>
 		</Unit>
 		<Unit filename="C:/Users/mgh33/Dropbox/hw2_operating_system/fs.c">

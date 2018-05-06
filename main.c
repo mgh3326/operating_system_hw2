@@ -2,15 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Disk.h"
+#include "disk.h"
 #include "fs.h"
 
 #define INODE_SIZE 64
 
-int main() {
+int main()
+{
     printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
-    MakeDir("/ohoh/wow/temp");
+    MakeDir("/tmp");
+    OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
     Unmount();
     printf("\tmain finish\n");
 }

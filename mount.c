@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "fs.h"
-#include "Disk.h"
+#include "disk.h"
 #include <math.h>
 #include <string.h>
 
@@ -29,12 +29,12 @@ void Mount(MountType type)
         pFileSysInfo->numAllocBlocks = 0;
         pFileSysInfo->numFreeBlocks = 512 - 19; //-19필요한가
         pFileSysInfo->numAllocInodes = 0;
-        pFileSysInfo->blockBitmapBlock = BLOCK_BITMAP_BLK_NUM;
-        pFileSysInfo->inodeBitmapBlock = INODE_BITMAP_BLK_NUM;
-        pFileSysInfo->inodeListBlock = INODELIST_BLK_FIRST;
-        pFileSysInfo->dataReionBlock = 19;
+        pFileSysInfo->blockBitmapBlock = BLOCK_BITMAP_BLOCK_NUM;
+        pFileSysInfo->inodeBitmapBlock = INODE_BITMAP_BLOCK_NUM;
+        pFileSysInfo->inodeListBlock = INODELIST_BLOCK_FIRST;
+        pFileSysInfo->dataRegionBlock = 19;
         //        int num = GetFreeBlockNum() + 19;// 이렇게 해서 19가 나오게 하는게 맞나
-        DirEntry *pDirEntry[4]; // 크기가 3인 구조체 포인터 배열 선언
+        DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
         // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
         for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
         {
@@ -67,19 +67,19 @@ void Mount(MountType type)
         pInode = malloc(sizeof *pInode); // 이렇게 할당 malloc 해주면 되는건가
 
         GetInode(first_inode, pInode);
-        pInode->dirBlkPtr[0] = first_block;
+        pInode->dirBlockPtr[0] = first_block;
         pInode->size = 0;
         pInode->type = FILE_TYPE_DIR;
-        pInode->indirBlkPointer = 0;
+        pInode->indirBlockPtr = 0;
 
         //> pInode에서 direct block pointer[0]의 값을 block 19로 설정
 
         //> 변경된 pInode의 값을 디스크에 저장함
         PutInode(first_inode, pInode);
-//        free(pFile/SysInfo);//free 해주면 안되네
-//        free(pDirEntry);
-//        free(buf);
-//        free(pInode);
+        //        free(pFile/SysInfo);//free 해주면 안되네
+        //        free(pDirEntry);
+        //        free(buf);
+        //        free(pInode);
     }
     else if (type == MT_TYPE_READWRITE)
     {
@@ -97,7 +97,6 @@ void Unmount(void)
     //    전원을 끌 때 호출되는 함수라고 간주하면 된다.
     //            가상 디스크 파일을 close한다.
     // printf("do close\n");
-    DevCloseDisk(); //이렇게 추가 하면 될라나?
 }
 
 // // Unmount()
