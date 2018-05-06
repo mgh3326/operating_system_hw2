@@ -76,6 +76,10 @@ void Mount(MountType type)
 
         //> 변경된 pInode의 값을 디스크에 저장함
         PutInode(first_inode, pInode);
+//        free(pFile/SysInfo);//free 해주면 안되네
+//        free(pDirEntry);
+//        free(buf);
+//        free(pInode);
     }
     else if (type == MT_TYPE_READWRITE)
     {

@@ -29,16 +29,31 @@ int MakeDir(const char *szDirName) {
     Inode *pInode = NULL;
     pInode = malloc(sizeof(pInode));
     //    strncpy(pDirEntry->name, szDirName,12);
-    strncpy(pDirEntry->name, szDirName, sizeof(pDirEntry->name) - 1);//strcpy는 안좋다니까 strncpy로 함
-    pDirEntry->inodeNum = GetFreeInodeNum();
-    pInode->size = 1;//이게 바이트 크기인가
-    pInode->type = FILE_TYPE_DIR;
+    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
+    int index = 0;
+    //형준쓰거
+    char *path = (char *) malloc(sizeof(szDirName));
+    strcpy(path, szDirName);
+    char *parsePtr = strtok(path, "/");
 
-
-    SetInodeBitmap(pDirEntry->inodeNum);
-    PutInode(pDirEntry->inodeNum, pInode);//pInode 내용을 넣어주어야겠다.
+    while (parsePtr != NULL) {
+        //insertMatrix(&m, parsePtr);
+        //printf("%s",parsePtr);
+        strcpy(arr[index++], parsePtr);
+        parsePtr = strtok(NULL, "/");
+    }
+    for(int i=0;i<index;i++)
+    {
+        printf("%s\n",arr[i]);
+    }
+    strncpy(pDirEntry->name, szDirName, sizeof(pDirEntry->name) - 1); //strcpy는 안좋다니까 strncpy로 함
+    //    pDirEntry->inodeNum = GetFreeInodeNum();
+    //    pInode->size = 1; //이게 바이트 크기인가
+    //    pInode->type = FILE_TYPE_DIR;
+    //
+    //    SetInodeBitmap(pDirEntry->inodeNum);
+    //    PutInode(pDirEntry->inodeNum, pInode); //pInode 내용을 넣어주어야겠다.
     return 0;
-
 }
 
 int RemoveDir(const char *szDirName) {
@@ -57,7 +72,7 @@ void FileSysInit(void) //Success
     // {
     //     buf[i] = 0;
     // }
-    memset(buf, 0, BLOCK_SIZE); // memset을 통해서 모든 메모리를 0으로 만듭니다.
+    memset(buf, 0, BLOCK_SIZE);   // memset을 통해서 모든 메모리를 0으로 만듭니다.
     for (int i = 0; i < 512; i++) //512 블록까지 초기화 하라는건가?
     {
         DevWriteBlock(i, buf);

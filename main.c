@@ -10,7 +10,7 @@
 int main() {
     printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
-
+    MakeDir("/ohoh/wow/temp");
     Unmount();
     printf("\tmain finish\n");
 }
