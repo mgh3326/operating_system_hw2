@@ -7,12 +7,16 @@
 
 #define INODE_SIZE 64
 
-int main()
-{
+int main() {
     printf("\tmain start\n");
     Mount(MT_TYPE_FORMAT);
     MakeDir("/tmp");
-    OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
+    int oh = OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
+    printf("OpenFile Return :  %d\n", oh);
+//    oh = OpenFile("/tmp/b.c", OPEN_FLAG_CREATE);
+//    printf("OpenFile Return :  %d\n", oh);
+//    oh = OpenFile("/tmp/c.c", OPEN_FLAG_CREATE);
+//    printf("OpenFile Return :  %d\n", oh);
     int i;
     int count;
     DirEntryInfo pDirEntryInfo[20];
