@@ -34,18 +34,20 @@ void Mount(MountType type)
         pFileSysInfo->inodeListBlock = INODELIST_BLOCK_FIRST;
         pFileSysInfo->dataRegionBlock = 19;
         //        int num = GetFreeBlockNum() + 19;// 이렇게 해서 19가 나오게 하는게 맞나
-        DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
-        // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
-        for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
-        {
-            pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
-        }                                            //https://dojang.io/mod/page/view.php?id=447 여기서 보고 따라함
-        pDirEntry[0]->inodeNum = first_inode;        //된다 된다
+        DirEntry *pDirEntry = (DirEntry *)malloc(BLOCK_SIZE);
+
+        // DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
+        // // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
+        // for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
+        // {
+        //     pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
+        // }                                            //https://dojang.io/mod/page/view.php?id=447 여기서 보고 따라함
+        pDirEntry[0].inodeNum = first_inode; //된다 된다
         SetInodeBitmap(first_inode);
-        strncpy(pDirEntry[0]->name, ".", sizeof(pDirEntry[0]->name) - 1); //strcpy는 안좋다니까 strncpy로 함
-        DevWriteBlock(first_block, (char *)pDirEntry);                    //이러면 전달 될라나
-        SetBlockBitmap(first_block);                                      //19번
-        char *buf = malloc(BLOCK_SIZE);                                   //(7) Block 크기의 메모리 할당
+        strncpy(pDirEntry[0].name, ".", sizeof(pDirEntry[0].name) - 1); //strcpy는 안좋다니까 strncpy로 함
+        DevWriteBlock(first_block, (char *)pDirEntry);                  //이러면 전달 될라나
+        SetBlockBitmap(first_block);                                    //19번
+        char *buf = malloc(BLOCK_SIZE);                                 //(7) Block 크기의 메모리 할당
 
         //(8) FileSysInfo으로 형 변환함.
         //디렉토리 한 개 할당,
@@ -80,6 +82,7 @@ void Mount(MountType type)
         //        free(pDirEntry);
         //        free(buf);
         //        free(pInode);
+        printf("mount complete\n");
     }
     else if (type == MT_TYPE_READWRITE)
     {

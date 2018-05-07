@@ -7,12 +7,12 @@
 
 FileDescTable *pFileDescTable = NULL;
 
-int FindDir(int *inoIndex, char arr[64][MAX_NAME_LEN + 1], int arr_index, DirEntry **retDirPtr, int *retDirPtrIndex,
-            int *retBlkIndex, int count) //폴더 찾기
+int FindDir(int *inoIndex, char arr[64][MAX_NAME_LEN + 1], int arr_index, DirEntry *retDirPtr, int *retDirPtrIndex,
+            int *retBlkIndex) //폴더 찾기
 {
     //root의 tmp 찾기
     Inode *root = (Inode *) malloc(sizeof(Inode));
-    GetInode(*inoIndex, root); // 루트여서 0번째 inode 확인
+    GetInode(*inoIndex, root);
 
     //alloc memory
     char *blkPtr = (char *) malloc(BLOCK_SIZE);
@@ -22,14 +22,14 @@ int FindDir(int *inoIndex, char arr[64][MAX_NAME_LEN + 1], int arr_index, DirEnt
             DevReadBlock(root->dirBlockPtr[i], blkPtr);
         else
             break;
-        DirEntry **dirPtr = (DirEntry **) blkPtr;
-        for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) { //이건 4번이겠네
-            if (strcmp(dirPtr[i]->name, arr[count]) == 0) {
+        DirEntry *dirPtr = (DirEntry *) blkPtr;
+        for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+            if (strcmp(dirPtr[i].name, arr[arr_index - 1]) == 0) {
                 //set retDirPtr, retDirPtrIndex
                 *inoIndex = root->dirBlockPtr[i];
                 //						copyDirEnt(retDirPtr, dirPtr);
                 *retDirPtrIndex = i;
-                printf("adsfsa");
+
                 //free
                 free(root);
                 free(blkPtr);
@@ -39,29 +39,6 @@ int FindDir(int *inoIndex, char arr[64][MAX_NAME_LEN + 1], int arr_index, DirEnt
         }
         printf("ttt\n");
     }
-}
-
-int Findinode(const char *szFileName, int _inode) //retrun inode
-{
-    Inode *root = (Inode *) malloc(sizeof(Inode));
-    GetInode(_inode, root); // 루트여서 0번째 inode 확인
-    char *blkPtr = (char *) malloc(BLOCK_SIZE);
-    DevReadBlock(root->dirBlockPtr[0], blkPtr);//이거 일단 0번째 읽게함
-
-    DirEntry **dirPtr = (DirEntry **) blkPtr;
-
-    for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) { //이건 4번이겠네
-        if (strcmp(dirPtr[i]->name, szFileName) == 0) {
-
-            //free
-            int temp = dirPtr[i]->inodeNum;
-            free(root);
-            free(blkPtr);
-
-            return temp;
-        }
-    }
-    return -1;
 }
 
 int OpenFile(const char *szFileName, OpenFlag flag) {
@@ -83,28 +60,19 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         int *retDirPtrIndex = (int *) malloc(sizeof(int));
         *retDirPtrIndex = 0;
         int *retBlkIndex = (int *) malloc(sizeof(int));
-        *retBlkIndex = 19;      // 19번부터 차근차근 찾자
-        DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
-        // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
-        for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
-        {
-            pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
-        }
-//        int temp = Findinode(arr[0], 0); //루트
+        *retBlkIndex = 19;
+//        DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
+//        // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
+//        for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
+//        {
+//            pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
+//        }
+        DirEntry *pDirEntry = (DirEntry *) malloc(BLOCK_SIZE);
 
-        int temp = 0;
-        for (int i = 0; i < arr_index; i++) {
-            temp = Findinode(arr[i], temp);
-            printf("temp : %d\n", temp);
-        }
-
-        // FindDir(inoIndex, arr, arr_index, pDirEntry, retDirPtrIndex, retBlkIndex, 0);//처음이니까 0
-        return 0;
+        FindDir(inoIndex, arr, arr_index, pDirEntry, retDirPtrIndex, retBlkIndex);
     } else //이 경우도 있나
     {
-        return 0;
     }
-    return -1;
 }
 
 int WriteFile(int fileDesc, char *pBuffer, int length) {
@@ -119,33 +87,28 @@ int CloseFile(int fileDesc) {
 int RemoveFile(const char *szFileName) {
 }
 
-int OneMakeDir(const char *szDirName, DirEntry **pDirEntry, int pDirPtrIndex, int pInoIndex, int pBlkIndex) //인자 이게 맞나
+int OneMakeDir(const char *szDirName, DirEntry *pDirEntry, int pDirPtrIndex, int pInoIndex, int pBlkIndex) //인자 이게 맞나
 {
     //여기부터 temp일 경우
 
     int inode_index = GetFreeInodeNum();
     int block_index = GetFreeBlockNum();
     // int pDirPtrIndex = 0;
-    strncpy(pDirEntry[pDirPtrIndex]->name, szDirName,
-            sizeof(pDirEntry[pDirPtrIndex]->name) - 1); //strcpy는 안좋다니까 strncpy로 함
-    pDirEntry[pDirPtrIndex]->inodeNum = inode_index;
+    strncpy(pDirEntry[pDirPtrIndex].name, szDirName,
+            sizeof(pDirEntry[pDirPtrIndex].name) - 1); //strcpy는 안좋다니까 strncpy로 함
+
+    pDirEntry[pDirPtrIndex].inodeNum = inode_index;
     DevWriteBlock(pBlkIndex, (char *) pDirEntry);
 
-    char *cBlkPtr = (char *) malloc(BLOCK_SIZE);// 이거 안쓰는듯
-//    DirEntry **cDirPtr = (DirEntry **) cBlkPtr;
-    DirEntry *cDirPtr[4]; // 크기가 4인 구조체 포인터 배열 선언
-    // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
-    for (int i = 0; i < sizeof(cDirPtr) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
-    {
-        cDirPtr[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
-    }
+    char *cBlkPtr = (char *) malloc(BLOCK_SIZE);
+    DirEntry *cDirPtr = (DirEntry *) cBlkPtr;
 
     //set DirEntry's data, write to disk
-    strcpy(cDirPtr[0]->name, ".");
-    cDirPtr[0]->inodeNum = inode_index;
-    strcpy(cDirPtr[1]->name, "..");
-    cDirPtr[1]->inodeNum = pInoIndex;
-    DevWriteBlock(block_index, (char *) cDirPtr);
+    strcpy(cDirPtr[0].name, ".");
+    cDirPtr[0].inodeNum = inode_index;
+    strcpy(cDirPtr[1].name, "..");
+    cDirPtr[1].inodeNum = pInoIndex;
+    DevWriteBlock(block_index, cBlkPtr);
 
     Inode *pInode = NULL;
     pInode = malloc(sizeof(pInode));
@@ -190,12 +153,14 @@ int MakeDir(const char *szDirName) {
     }
     int *inoIndex = (int *) malloc(sizeof(int));
     *inoIndex = 0;
-    DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
-    // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
-    for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
-    {
-        pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
-    }
+//    DirEntry *pDirEntry[4]; // 크기가 4인 구조체 포인터 배열 선언
+//    // 구조체 포인터 배열 전체 크기에서 요소(구조체 포인터)의 크기로 나눠서 요소 개수를 구함
+//    for (int i = 0; i < sizeof(pDirEntry) / sizeof(DirEntry *); i++) // 요소 개수만큼 반복
+//    {
+//        pDirEntry[i] = malloc(sizeof(DirEntry)); // 각 요소에 구조체 크기만큼 메모리 할당
+//    }
+    DirEntry *pDirEntry = (DirEntry *)malloc(BLOCK_SIZE);
+
     // DirEntry *retDirPtr = (DirEntry *)malloc(BLOCK_SIZE);
     int *retDirPtrIndex = (int *) malloc(sizeof(int));
     *retDirPtrIndex = 1;
@@ -207,7 +172,7 @@ int MakeDir(const char *szDirName) {
     GetInode(0, pInode); //이게 뭐지
     char *blkPtr = (char *) malloc(BLOCK_SIZE);
     DevReadBlock(pInode->dirBlockPtr[0], blkPtr);
-    DirEntry **dirPtr = (DirEntry **) blkPtr;
+    DirEntry *dirPtr = (DirEntry *) blkPtr;
 
     //19이걸 읽자
     OneMakeDir(arr[arr_index - 1], dirPtr, *retDirPtrIndex, *inoIndex, *retBlkIndex);
@@ -221,20 +186,6 @@ int RemoveDir(const char *szDirName) {
 }
 
 int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEntrys) {
-    printf("Enumer Start\n");
-    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
-    int arr_index = 0;
-
-    char *path = (char *) malloc(sizeof(szDirName));
-    strcpy(path, szDirName);
-    char *parsePtr = strtok(path, "/");
-
-    while (parsePtr != NULL) {
-        strcpy(arr[arr_index++], parsePtr);
-        parsePtr = strtok(NULL, "/");
-    }
-    return 0;
-    return -1; //실패
 }
 
 void FileSysInit(void) //Success
