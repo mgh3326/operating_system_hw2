@@ -13,6 +13,17 @@ int main()
     Mount(MT_TYPE_FORMAT);
     MakeDir("/tmp");
     OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
+    int i;
+    int count;
+    DirEntryInfo pDirEntryInfo[20];
+
+    if ((count = EnumerateDirStatus("/usr/home/kim", pDirEntryInfo, 20)) < 0)
+        exit(0); // program terminated due to the error return of the function.
+    printf("count : %d", count);
+    for (i = 0; i < count; i++)
+        printf("directory entry : %s, type : %d, inode number : %d\n", pDirEntryInfo[i].name, pDirEntryInfo[i].type,
+               pDirEntryInfo[i].inodeNum);
+
     Unmount();
     printf("\tmain finish\n");
 }
