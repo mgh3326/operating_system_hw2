@@ -7,29 +7,46 @@
 
 #define INODE_SIZE 64
 
-int main() {
-    printf("\tmain start\n");
+int main()
+{
     Mount(MT_TYPE_FORMAT);
-    MakeDir("/tmp");
-    int oh = OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
-    printf("OpenFile Return :  %d\n", oh);
-//    oh = OpenFile("/tmp/b.c", OPEN_FLAG_CREATE);
-//    printf("OpenFile Return :  %d\n", oh);
-//    oh = OpenFile("/tmp/c.c", OPEN_FLAG_CREATE);
-//    printf("OpenFile Return :  %d\n", oh);
-    int i;
-    int count;
-    DirEntryInfo pDirEntryInfo[20];
 
-    if ((count = EnumerateDirStatus("/usr/home/kim", pDirEntryInfo, 20)) < 0)
-        exit(0); // program terminated due to the error return of the function.
-    printf("count : %d", count);
-    for (i = 0; i < count; i++)
-        printf("directory entry : %s, type : %d, inode number : %d\n", pDirEntryInfo[i].name, pDirEntryInfo[i].type,
-               pDirEntryInfo[i].inodeNum);
+    int a = MakeDir("/hi");
 
-    Unmount();
-    printf("\tmain finish\n");
+    int b = MakeDir("/hi/bye");
+    printf("MakeDir(/hi) retrun %d, MakeDir(/hi/bye) return %d\n", a, b);
+
+    printf("----------------------------------------\n");
+    int c = OpenFile("/aa", OPEN_FLAG_CREATE);
+    printf("OpenFile(/aa) return %d\n", c);
+
+    int d = OpenFile("/hi/bb", OPEN_FLAG_CREATE);
+    printf("OpenFile(/hi/bb) return %d\n", d);
+
+    int e = OpenFile("/hi/bye/cc", OPEN_FLAG_CREATE);
+    printf("OpenFile(/hi/bye/cc) return %d\n", e);
+    //     printf("\tmain start\n");
+    //     Mount(MT_TYPE_FORMAT);
+    //     MakeDir("/tmp");
+    //     int oh = OpenFile("/tmp/a.c", OPEN_FLAG_CREATE);
+    //     printf("OpenFile Return :  %d\n", oh);
+    // //    oh = OpenFile("/tmp/b.c", OPEN_FLAG_CREATE);
+    // //    printf("OpenFile Return :  %d\n", oh);
+    // //    oh = OpenFile("/tmp/c.c", OPEN_FLAG_CREATE);
+    // //    printf("OpenFile Return :  %d\n", oh);
+    //     int i;
+    //     int count;
+    //     DirEntryInfo pDirEntryInfo[20];
+
+    //     if ((count = EnumerateDirStatus("/usr/home/kim", pDirEntryInfo, 20)) < 0)
+    //         exit(0); // program terminated due to the error return of the function.
+    //     printf("count : %d", count);
+    //     for (i = 0; i < count; i++)
+    //         printf("directory entry : %s, type : %d, inode number : %d\n", pDirEntryInfo[i].name, pDirEntryInfo[i].type,
+    //                pDirEntryInfo[i].inodeNum);
+
+    //     Unmount();
+    //     printf("\tmain finish\n");
 }
 //char IsDigitOne(unsigned char *block, int bitIndex);
 //
