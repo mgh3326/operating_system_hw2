@@ -10,9 +10,9 @@
 
 
 
+#define FILENAME_MAX_LEN 30
 #define DIR_NUM_MAX      100
 
-char mode[10] = "";
 
 void PrintInodeBitmap(void)
 {
@@ -34,7 +34,7 @@ void PrintBlockBitmap(void)
 	int count;
 	int* pBitmap = (int*)malloc(BLOCK_SIZE);
 
-	count = BLOCK_SIZE / sizeof(int);         /* bit ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 64*8 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ */
+	count = BLOCK_SIZE / sizeof(int);         /* bit °³¼ö´Â 64*8 °³°¡ Á¸Àç */
 	DevReadBlock(1, pBitmap);
 	printf("Block bitmap");
 	for (i = 0; i < count; i++)
@@ -151,30 +151,22 @@ void TestCase2(void)
 {
 	int i, j;
 	int fd;
-	char fileName[MAX_NAME_LEN];
+	char fileName[FILENAME_MAX_LEN];
 	char dirName[MAX_NAME_LEN];
 	char pBuffer1[BLOCK_SIZE];
 
 	printf(" ---- Test Case 2 ----\n");
 
-	if (strcmp(mode, "format") == 0)
-		MakeDir("/home");
-
+	
 	ListDirContents("/home");
 	/* make home directory */
 	for (i = 0; i < 7; i++)
 	{
 
-		if (strcmp(mode, "format") == 0) {
-			memset(fileName, 0, MAX_NAME_LEN);
-			sprintf(fileName, "/home/user%d", i);
-			MakeDir(fileName);
-		}
-
 		for (j = 0; j < 7; j++)
 		{
 
-			memset(fileName, 0, MAX_NAME_LEN);
+			memset(fileName, 0, FILENAME_MAX_LEN);
 			sprintf(fileName, "/home/user%d/file%d", i, j);
 			fd = OpenFile(fileName, OPEN_FLAG_CREATE);
 			memset(pBuffer1, 0, BLOCK_SIZE);
@@ -196,18 +188,17 @@ void TestCase2(void)
 void TestCase3(void) {
 	int i, j, k;
 	char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$^&*()_";
-	char fileName[MAX_NAME_LEN];
+	char fileName[FILENAME_MAX_LEN];
 	char* pBuffer1 = (char*)malloc(BLOCK_SIZE);
 	char* pBuffer2 = (char*)malloc(BLOCK_SIZE);
 	int cIndex = 0;
 	int cmpCount = 0;
 	int fd[4] = { 0, };
 
-	MakeDir("/home");
 	MakeDir("/home/test");
 	for (i = 0; i < 4; i++)
 	{
-		memset(fileName, 0, MAX_NAME_LEN);
+		memset(fileName, 0, FILENAME_MAX_LEN);
 		sprintf(fileName, "/home/test/file%d", i);
 		fd[i] = OpenFile(fileName, OPEN_FLAG_CREATE);
 	}
@@ -232,7 +223,7 @@ void TestCase3(void) {
 
 	for (i = 0; i < 4; i++)
 	{
-		memset(fileName, 0, MAX_NAME_LEN);
+		memset(fileName, 0, FILENAME_MAX_LEN);
 		sprintf(fileName, "/home/test/file%d", i);
 		fd[i] = OpenFile(fileName, OPEN_FLAG_READWRITE);
 	}
@@ -268,7 +259,7 @@ void TestCase4(void)
 {
 	int i;
 	int fd;
-	char fileName[MAX_NAME_LEN];
+	char fileName[FILENAME_MAX_LEN];
 	char pBuffer[1024];
 
 	printf(" ---- Test Case 4 ----\n");
@@ -276,7 +267,7 @@ void TestCase4(void)
 	{
 		if (i % 2 == 0)
 		{
-			memset(fileName, 0, MAX_NAME_LEN);
+			memset(fileName, 0, FILENAME_MAX_LEN);
 			sprintf(fileName, "/home/user6/file%d", i);
 			RemoveFile(fileName);
 		}
@@ -287,7 +278,7 @@ void TestCase4(void)
 	{
 		if (i % 2)
 		{
-			memset(fileName, 0, MAX_NAME_LEN);
+			memset(fileName, 0, FILENAME_MAX_LEN);
 			sprintf(fileName, "/home/user6/file%d", i);
 			fd = OpenFile(fileName, OPEN_FLAG_READWRITE);
 
@@ -305,7 +296,7 @@ void TestCase4(void)
 	{
 		if (i % 2 == 0)
 		{
-			memset(fileName, 0, MAX_NAME_LEN);
+			memset(fileName, 0, FILENAME_MAX_LEN);
 			sprintf(fileName, "/home/user6/file%d", i);
 			fd = OpenFile(fileName, OPEN_FLAG_CREATE);
 
@@ -323,7 +314,6 @@ void TestCase4(void)
 int main(int argc, char** argv)
 {
 	int TcNum;
-	strcpy(mode, argv[1]);
 	if (argc < 3)
 	{
 	ERROR:
