@@ -62,13 +62,17 @@ void copyDirEnt(DirEntry *target, DirEntry *source) {
     }
 }
 
-bool findName(int *inoIndex, Matrix *m, int depth, DirEntry *retDirPtr, int *retDirPtrIndex, int *retBlkIndex,
+bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *retDirPtr, int *retDirPtrIndex,
+              int *retBlkIndex,
               bool *is_full) {
     //stop condition
-    if (m != NULL && m->array[depth] == NULL)
+    if (m != NULL && currentFileName == NULL) {
+        printf("===========\t\t\t\t\t이거 나오냐\n==================");
         return false;
-    if (m != NULL && (strcmp(m->array[depth], "") != 0))
-        printf("\nsearching name : %s\n", m->array[depth]);
+    }
+
+//    if (m != NULL && (strcmp(currentFileName, "") != 0))
+//        printf("\nsearching name : %s\n", currentFileName);
     *is_full = false;
     //get current inode
     Inode *root = (Inode *) malloc(sizeof(Inode));
@@ -112,7 +116,7 @@ bool findName(int *inoIndex, Matrix *m, int depth, DirEntry *retDirPtr, int *ret
             } else {
                 //printf("zzz...[%d][%d].name = %s\n",i , j, dirPtr[j].name);
                 //if file is already exist
-                if (strcmp(dirPtr[j].name, m->array[depth]) == 0) {
+                if (strcmp(dirPtr[j].name, currentFileName) == 0) {
                     //set retDirPtr, retDirPtrIndex
                     *inoIndex = dirPtr[j].inodeNum;
                     copyDirEnt(retDirPtr, dirPtr);
@@ -172,7 +176,7 @@ bool findName(int *inoIndex, Matrix *m, int depth, DirEntry *retDirPtr, int *ret
                 } else {
                     //printf("uuu\n");
                     //if file is already exist
-                    if (strcmp(dirPtr[j].name, m->array[depth]) == 0) {
+                    if (strcmp(dirPtr[j].name, currentFileName) == 0) {
                         //set retDirPtr, retDirPtrIndex
                         *inoIndex = dirPtr[j].inodeNum;
                         copyDirEnt(retDirPtr, dirPtr);
@@ -380,20 +384,35 @@ int MakeDir(const char *szDirName) {
         parsePtr = strtok(NULL, "/");
     }
     free(path);
+    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
+    int arr_index = 0;
+    //ㅎㅈ쓰거
+    char *input_path = (char *) malloc(sizeof(szDirName));
+    strcpy(input_path, szDirName);
+    char *temp_Ptr = strtok(input_path, "/");
 
+    while (temp_Ptr != NULL) {
+        strcpy(arr[arr_index++], temp_Ptr);
+        temp_Ptr = strtok(NULL, "/");
+    }
     int depth = 0;
     DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int retDirPtrIndex = 0;
     int retBlkIndex = 19;
     bool is_full = false;
     //find
-    while (findName(&inoIndex, &m, depth, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
+    for (int i = 0; i < arr_index - 1; i++) { //마지막 인덱스는 빼자
+        findName(arr[depth], &inoIndex, &m, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
         inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
         depth++;
     }
+//        while (findName(arr[depth],&inoIndex, &m,  retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
+//        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
+//        depth++;
+//    }
     //make dir
-    if (m.array[depth] != NULL) {
-        findName(&inoIndex, NULL, 0, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
+    if (arr[depth + 1][0] == '\0') {
+        findName(arr[0], &inoIndex, NULL, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
         if (myMakeDir(&m, depth, retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex, is_full)) {
             freeMatrix(&m);
             return 0;
@@ -579,39 +598,39 @@ bool myRemoveDir(Matrix *m, int depth, DirEntry *pDirPtr, int pDirPtrIndex, int 
 }
 
 int RemoveDir(const char *szDirName) {
-    int inoIndex = 0;
-
-    //for save string
-    Matrix m;
-    initMatrix(&m, 2);
-    //split path
-    char *path = (char *) malloc(sizeof(szDirName));
-    strcpy(path, szDirName);
-    char *parsePtr = strtok(path, "/");
-    //parse, save string
-    while (parsePtr != NULL) {
-        insertMatrix(&m, parsePtr);
-        parsePtr = strtok(NULL, "/");
-    }
-    free(path);
-    int depth = 0;
-    DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
-    int retDirPtrIndex = 0;
-    int retBlkIndex = 19;
-    bool is_full = false;
-    //find
-    while (findName(&inoIndex, &m, depth, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
-        //if found dir name to remove
-        if (m.array[depth + 1] == NULL) {
-            //remove dir
-            if (myRemoveDir(&m, depth, retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex))
-                return 0;
-        }
-        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
-        depth++;
-    }
-    //if not found
-    return -1;
+//    int inoIndex = 0;
+//
+//    //for save string
+//    Matrix m;
+//    initMatrix(&m, 2);
+//    //split path
+//    char *path = (char *) malloc(sizeof(szDirName));
+//    strcpy(path, szDirName);
+//    char *parsePtr = strtok(path, "/");
+//    //parse, save string
+//    while (parsePtr != NULL) {
+//        insertMatrix(&m, parsePtr);
+//        parsePtr = strtok(NULL, "/");
+//    }
+//    free(path);
+//    int depth = 0;
+//    DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
+//    int retDirPtrIndex = 0;
+//    int retBlkIndex = 19;
+//    bool is_full = false;
+//    //find
+//    while (findName(&inoIndex, &m, depth, retDirPtr,   &retDirPtrIndex, &retBlkIndex, &is_full)) {
+//        //if found dir name to remove
+//        if (m.array[depth + 1] == NULL) {
+//            //remove dir
+//            if (myRemoveDir(&m, depth, retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex))
+//                return 0;
+//        }
+//        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
+//        depth++;
+//    }
+//    //if not found
+//    return -1;
 }
 
 int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEntrys) {
@@ -631,16 +650,26 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
         parsePtr = strtok(NULL, "/");
     }
     free(path);
+    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
+    int arr_index = 0;
+    //ㅎㅈ쓰거
+    char *input_path = (char *) malloc(sizeof(szDirName));
+    strcpy(input_path, szDirName);
+    char *temp_Ptr = strtok(input_path, "/");
 
+    while (temp_Ptr != NULL) {
+        strcpy(arr[arr_index++], temp_Ptr);
+        temp_Ptr = strtok(NULL, "/");
+    }
     int depth = 0;
     DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int retDirPtrIndex = 0;
     int retBlkIndex = 19;
     bool is_full = false;
     //find
-    while (findName(&inoIndex, &m, depth, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
+    while (findName(arr[depth], &inoIndex, &m, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
         //if found dir name to make
-        if (m.array[depth + 1] == NULL) {
+        if (arr[depth + 1][0] == '\0') {//ohyeah
             //get inode
             Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
             Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
@@ -660,7 +689,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
                         if (strcmp(dirPtr[j].name, "") != 0) {
                             //get child inode to get type
                             GetInode(dirPtr[j].inodeNum, cInoPtr);
-                            pDirEntry[count].type = cInoPtr->type;
+                            pDirEntry[count].type = (FileType) cInoPtr->type;
                             strcpy(pDirEntry[count].name, dirPtr[j].name);
                             pDirEntry[count].inodeNum = dirPtr[j].inodeNum;
                             count++;

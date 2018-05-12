@@ -38,26 +38,26 @@ int main() {
     printf(" ---- Test Case 1 ----\n");
 
     MakeDir("/tmp");
-//    MakeDir("/usr");
-//    MakeDir("/etc");
-//    MakeDir("/home");
-//    /* make home directory */
-//    for (i = 0; i < 7; i++)
-//    {
-//        memset(dirName, 0, MAX_NAME_LEN);
-//        sprintf(dirName, "/home/user%d", i);
-//        MakeDir(dirName);
-//    }
+    MakeDir("/usr");
+    MakeDir("/etc");
+    MakeDir("/home");
+    /* make home directory */
+    for (i = 0; i < 7; i++)
+    {
+        memset(dirName, 0, MAX_NAME_LEN);
+        sprintf(dirName, "/home/user%d", i);
+        MakeDir(dirName);
+    }
 //    /* make etc directory */
-//    for (i = 0; i < 24; i++)
-//    {
-//        memset(dirName, 0, MAX_NAME_LEN);
-//        sprintf(dirName, "/etc/dev%d", i);
-//        MakeDir(dirName);
-//    }
-//    ListDirContents("/home");
-//    ListDirContents("/etc");
-//
+    for (i = 0; i < 24; i++)
+    {
+        memset(dirName, 0, MAX_NAME_LEN);
+        sprintf(dirName, "/etc/dev%d", i);
+        MakeDir(dirName);
+    }
+    ListDirContents("/home");
+    ListDirContents("/etc");
+
 //    /* remove subdirectory of etc directory */
 //    for (i = 23; i >= 0; i--)
 //    {
