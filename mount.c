@@ -82,7 +82,6 @@ void Mount(MountType type)
         //        free(pDirEntry);
         //        free(buf);
         //        free(pInode);
-        printf("mount complete\n");
     }
     else if (type == MT_TYPE_READWRITE)
     {
@@ -99,6 +98,7 @@ void Unmount(void)
 {
     //    전원을 끌 때 호출되는 함수라고 간주하면 된다.
     //            가상 디스크 파일을 close한다.
+    DevCloseDisk();
     // printf("do close\n");
 }
 

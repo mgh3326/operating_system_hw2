@@ -153,6 +153,7 @@ int ReadFile(int fileDesc, char *pBuffer, int length) {
 }
 
 int CloseFile(int fileDesc) {
+
 }
 
 int RemoveFile(const char *szFileName) {
@@ -186,13 +187,15 @@ int OneMakeDir(const char *szDirName, DirEntry *pDirEntry, int pDirPtrIndex, int
     cDirPtr[1].inodeNum = pInoIndex;
     DevWriteBlock(block_index, cBlkPtr);
 
-    Inode *pInode = NULL;
-    pInode = malloc(sizeof(pInode));
-    GetInode(inode_index, pInode);
-    pInode->size = 0; //이게 바이트 크기인가
-    pInode->type = FILE_TYPE_DIR;
-    pInode->dirBlockPtr[0] = block_index;
-    PutInode(inode_index, pInode);
+    Inode *preInode = NULL;
+    preInode = malloc(sizeof(preInode));
+    GetInode(inode_index, preInode);
+    preInode->size = 64; //이게 바이트 크기인가
+    preInode->type = FILE_TYPE_DIR;
+    preInode->dirBlockPtr[0] = block_index;
+    preInode->indirBlockPtr = 0;
+    PutInode(inode_index, preInode);
+
 
     SetInodeBitmap(inode_index);
     SetBlockBitmap(block_index);
@@ -206,8 +209,8 @@ int OneMakeDir(const char *szDirName, DirEntry *pDirEntry, int pDirPtrIndex, int
     DevWriteBlock(FILESYS_INFO_BLOCK, cBlkPtr);
 
     //free
-    //    free(cBlkPtr);
-    //    free(pInode);
+    free(cBlkPtr);
+    free(preInode);
     return 0;
 }
 
@@ -241,14 +244,12 @@ int MakeDir(const char *szDirName) {
     pInode = malloc(sizeof *pInode); // 이렇게 할당 malloc 해주면 되는건가
 
     GetInode(inoindex, pInode); //이게 뭐지
-
     int dirptindex = 0;
     int blkindex = pInode->dirBlockPtr[0];//이럼 될라나
     char *blkPtr = (char *) malloc(BLOCK_SIZE);
     DevReadBlock(pInode->dirBlockPtr[0], blkPtr);
     DirEntry *dirPtr = (DirEntry *) blkPtr;
-
-     {//root 일때
+    while (1) {//root 일때
         for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
 
             if (strcmp(dirPtr[i].name, "") == 0) {
@@ -256,36 +257,76 @@ int MakeDir(const char *szDirName) {
                 OneMakeDir(arr[arr_index - 1], dirPtr, dirptindex, inoindex, blkindex);
 
                 printf("%s\n", arr[arr_index - 1]);
-
-                break;
+                return 0;
+//                break;
             }
 
             if (i == NUM_OF_DIRENT_PER_BLOCK - 1)//direct node full!!
             {
 //            printf("block full??%d\n", dirptindex);
                 if (pInode->dirBlockPtr[1] == 0) {
+                    Inode *direct_Inode = NULL;
+                    direct_Inode = malloc(sizeof *direct_Inode); // 이렇게 할당 malloc 해주면 되는건가
+                    GetInode(inoindex, direct_Inode);
                     blkindex = GetFreeBlockNum();
-                    pInode->dirBlockPtr[1] = blkindex;
-                    PutInode(inoindex, pInode);//이럼 되나
-                    SetBlockBitmap(GetFreeBlockNum());
+                    direct_Inode->dirBlockPtr[1] = blkindex;
 
-                    DevReadBlock(pInode->dirBlockPtr[1], blkPtr);
-                    DirEntry *dirPtr = (DirEntry *) blkPtr;
+                    PutInode(inoindex, direct_Inode);//이럼 되나
+                    SetBlockBitmap(blkindex);
+                    char *direct_blkPtr = (char *) malloc(BLOCK_SIZE);
+
+                    DevReadBlock(direct_Inode->dirBlockPtr[1], direct_blkPtr);
+                    DirEntry *direct_dirPtr = (DirEntry *) direct_blkPtr;
+
                     for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
 
-                        if (strcmp(dirPtr[j].name, "") == 0) {
+                        if (strcmp(direct_dirPtr[j].name, "") == 0) {
                             dirptindex = j;
-                            OneMakeDir(arr[arr_index - 1], dirPtr, dirptindex, inoindex, blkindex);
+                            OneMakeDir(arr[arr_index - 1], direct_dirPtr, dirptindex, inoindex, blkindex);
 
                             printf("%s\n", arr[arr_index - 1]);
 
+                            return 0;
                             break;
                         }
-                        if (j == NUM_OF_DIRENT_PER_BLOCK - 1)//direct node full!!
+                        if (j == NUM_OF_DIRENT_PER_BLOCK - 1)//one direct node full!!
                         {
                             printf("please indirect node\n");//인 다이렉트 노드
+                            return -1;
                         }
                     }
+                } else {//안차있다면??
+                    char *blkPtr2 = (char *) malloc(BLOCK_SIZE);
+                    blkindex = pInode->dirBlockPtr[1];
+                    DevReadBlock(pInode->dirBlockPtr[1], blkPtr2);
+                    DirEntry *dirPtr2 = (DirEntry *) blkPtr2;
+                    for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+
+                        if (strcmp(dirPtr2[i].name, "") == 0) {
+                            dirptindex = i;
+                            OneMakeDir(arr[arr_index - 1], dirPtr2, dirptindex, inoindex, blkindex);
+
+                            printf("%s\n", arr[arr_index - 1]);
+                            return 0;
+
+//                break;
+                        }
+                        if (i == NUM_OF_DIRENT_PER_BLOCK - 1)//two direct node full!
+                        {
+                            //인다이렉트 노드를 할당해보자
+//                            printf("\t\t\tOh Inode\n");
+                            if (pInode->indirBlockPtr == 0) {
+                                int my_indirec = GetFreeInodeNum();
+                                pInode->indirBlockPtr = my_indirec;
+                                SetInodeBitmap((my_indirec));
+                            } else {
+                                GetInode(pInode->indirBlockPtr, pInode);
+                            }
+                            //return -1;
+                        }
+
+                    }
+
                 }
 
             }
@@ -330,6 +371,7 @@ void FileSysInit(void) //Success
     //     buf[i] = 0;
     // }
     memset(buf, 0, BLOCK_SIZE);   // memset을 통해서 모든 메모리를 0으로 만듭니다.
+
     for (int i = 0; i < 512; i++) //512 블록까지 초기화 하라는건가?
     {
         DevWriteBlock(i, buf);
@@ -376,21 +418,50 @@ void ResetBlockBitmap(int blkno) {
 
 void PutInode(int inodeno, Inode *pInode) {
 
-    char *buf = malloc(BLOCK_SIZE);
+
     //DevOpenDisk();
-    DevReadBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
-    memcpy(buf + (inodeno % 8) * sizeof(Inode), pInode, sizeof(Inode));
-    DevWriteBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
-    free(buf);
+    int blkininode = BLOCK_SIZE / sizeof(Inode);
+    if (inodeno >= INODELIST_BLOCKS * blkininode)
+        return;
+    int blk_posi = INODELIST_BLOCK_FIRST + inodeno / blkininode;
+    int inode_posi = inodeno % blkininode;
+    char *inodeblk = malloc(BLOCK_SIZE);
+
+    DevReadBlock(blk_posi, inodeblk);
+    memcpy(inodeblk + (inode_posi * sizeof(Inode)), pInode, sizeof(Inode));
+    DevWriteBlock(blk_posi, inodeblk);
+
+    free(inodeblk);
+//
+//
+//    char *buf = malloc(BLOCK_SIZE);
+//    //DevOpenDisk();
+//    DevReadBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
+//    memcpy(buf + (inodeno % 8) * sizeof(Inode), pInode, sizeof(Inode));
+//    DevWriteBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
+//    free(buf);
 }
 
 void GetInode(int inodeno, Inode *pInode) {
 
-    char *buf = malloc(BLOCK_SIZE);
     //DevOpenDisk();
-    DevReadBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
-    memcpy(pInode, buf + (inodeno % 8) * sizeof(Inode), sizeof(Inode));
-    free(buf);
+    int blkininode = BLOCK_SIZE / sizeof(Inode);
+    if (inodeno >= INODELIST_BLOCKS * blkininode)
+        return;
+    int blk_posi = INODELIST_BLOCK_FIRST + inodeno / blkininode;
+    int inode_posi = inodeno % blkininode;
+    char *inodeblk = (char *) malloc(BLOCK_SIZE);
+
+    DevReadBlock(blk_posi, inodeblk);
+    memcpy(pInode, inodeblk + (inode_posi * sizeof(Inode)), sizeof(Inode));
+
+    free(inodeblk);
+//
+//    char *buf = malloc(BLOCK_SIZE);
+//    //DevOpenDisk();
+//    DevReadBlock((inodeno / 8) + INODELIST_BLOCK_FIRST, buf);
+//    memcpy(pInode, buf + (inodeno % 8) * sizeof(Inode), sizeof(Inode));
+//    free(buf);
 }
 
 int GetFreeInodeNum(void) {
