@@ -62,17 +62,14 @@ void copyDirEnt(DirEntry *target, DirEntry *source) {
     }
 }
 
-bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *retDirPtr, int *retDirPtrIndex,
-              int *retBlkIndex,
-              bool *is_full) {
+bool
+findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *retDirPtr, int *retDirPtrIndex,
+         int *retBlkIndex, bool *is_full) {
     //stop condition
-    if (m != NULL && currentFileName == NULL) {
-        printf("===========\t\t\t\t\t이거 나오냐\n==================");
+    //if (m != NULL && currentFileName == NULL)
+    if (currentFileName == NULL)
         return false;
-    }
-
-//    if (m != NULL && (strcmp(currentFileName, "") != 0))
-//        printf("\nsearching name : %s\n", currentFileName);
+    //if(m != NULL && (strcmp(currentFileName, "") != 0) ) printf("\nsearching name : %s\n", currentFileName);
     *is_full = false;
     //get current inode
     Inode *root = (Inode *) malloc(sizeof(Inode));
@@ -97,7 +94,7 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
         //compare paresed name with DirEntry's name
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (m == NULL) {
-                printf("eee...[%d][%d].name = '%s'\n", i, j, dirPtr[j].name);
+                //printf("eee...[%d][%d].name = '%s'\n", i, j, dirPtr[j].name);
                 //if file name is ""
                 if (strcmp(dirPtr[j].name, "") == 0) {
                     //set retDirPtr, retDirPtrIndex, retBlkIndex
@@ -118,15 +115,10 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
                 //if file is already exist
                 if (strcmp(dirPtr[j].name, currentFileName) == 0) {
                     //set retDirPtr, retDirPtrIndex
-                    *inoIndex = dirPtr[j].inodeNum;
                     copyDirEnt(retDirPtr, dirPtr);
                     *retDirPtrIndex = j;
                     *retBlkIndex = root->dirBlockPtr[i];
-                    //printf("yyy... inoIndex = %d, root->dirBloPtr[0] = %d, [1] = %d, indirect = %d\n",*inoIndex, root->dirBlockPtr[0],root->dirBlockPtr[1],root->indirBlockPtr);
-
-                    // Inode* tmp = (Inode*)malloc(sizeof(Inode));
-                    // GetInode(*inoIndex, tmp);
-                    // printf("tmp->dir[0] = %d, [1] = %d, indir = %d\n", tmp->dirBlockPtr[0], tmp->dirBlockPtr[1], tmp->indirBlockPtr);
+                    //printf("yyy... inoIndex = %d, root->dirBloPtr[0] = %d, [1] = %d, indirect = %d\n",*inoIndex, root->dirBlockPtr[0], root->dirBlockPtr[1], root->indirBlockPtr);
 
                     //free
                     free(root);
@@ -156,7 +148,7 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
 
             //compare paresed name with DirEntry's name
             for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
-                printf("www...[%d][%d].name = '%s'\n", i, j, dirPtr[j].name);
+                //printf("www...[%d][%d].name = '%s'\n",i, j, dirPtr[j].name);
                 if (m == NULL) {
                     //if file name is ""
                     if (strcmp(dirPtr[j].name, "") == 0) {
@@ -178,7 +170,6 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
                     //if file is already exist
                     if (strcmp(dirPtr[j].name, currentFileName) == 0) {
                         //set retDirPtr, retDirPtrIndex
-                        *inoIndex = dirPtr[j].inodeNum;
                         copyDirEnt(retDirPtr, dirPtr);
                         *retDirPtrIndex = j;
                         *retBlkIndex = indirect[i];
@@ -192,7 +183,7 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
             }
         }
     }
-    printf("findName end...\n");
+    //printf("findName end...\n");
     //if not found, free
     free(root);
     free(blkPtr);
@@ -200,155 +191,232 @@ bool findName(const char *currentFileName, int *inoIndex, Matrix *m, DirEntry *r
     return false;
 }
 
-bool myMakeDir(Matrix *m, int depth, DirEntry *pDirPtr, int pDirPtrIndex, int pInoIndex, int pBlkIndex, bool is_full) {
+bool findNameNotNULL(const char *currentFileName, int inoIndex, DirEntry *retDirPtr, int *retDirPtrIndex,
+                     int *retBlkIndex, bool *is_full) {
+    //stop condition
+    //if (m != NULL && currentFileName == NULL)
+    if (currentFileName == NULL)//없어도 될거같은데
+        return false;
+    //if(m != NULL && (strcmp(currentFileName, "") != 0) ) printf("\nsearching name : %s\n", currentFileName);
+    *is_full = false;
+    //get current inode
+    Inode *root = (Inode *) malloc(sizeof(Inode));
+    GetInode(inoIndex, root);
+    //printf("findName start...inoIndex = %d, retDirPtrIndex = %d, retBlkIndex = %d\n", *inoIndex, *retDirPtrIndex, *retBlkIndex);
+    //alloc memory
+    char *blkPtr = (char *) malloc(BLOCK_SIZE);
+    char *blkPtr2 = (char *) malloc(BLOCK_SIZE);
+    //check file name is already exist
+    //at direct ptr
+    for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
+        //read blcok, cast to DirEntry
+        //check dirBlkPtr is 0 => if 0, no more meaningful block is alloced
+        if (root->dirBlockPtr[i] != 0)
+            DevReadBlock(root->dirBlockPtr[i], blkPtr);
+        else {
+            //printf("root->dirBlockPtr[%d] = %d\n", i, root->dirBlockPtr[i]);
+            break;
+        }
+        DirEntry *dirPtr = (DirEntry *) blkPtr;
 
-    //if pDirPtr is full
-    if (is_full) {
-        //get parent inoPtr
-        Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
-        GetInode(pInoIndex, pInoPtr);
+        //compare paresed name with DirEntry's name
+        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+            if (0) {
+                //printf("eee...[%d][%d].name = '%s'\n", i, j, dirPtr[j].name);
+                //if file name is ""
+                if (strcmp(dirPtr[j].name, "") == 0) {
+                    //set retDirPtr, retDirPtrIndex, retBlkIndex
+                    copyDirEnt(retDirPtr, dirPtr);
+                    *retDirPtrIndex = j;
+                    *retBlkIndex = root->dirBlockPtr[i];
+                    *is_full = false;
+                    //printf("ccc...inoIndex = %d, retDirPtrIndex = %d, retBlkIndex = %d\n", *inoIndex, *retDirPtrIndex, *retBlkIndex);
+                    //free
+                    free(root);
+                    free(blkPtr);
 
-        if (pInoPtr->dirBlockPtr[1] == 0) {
-            //init pDirPtr, pDirPtrIndex
-            memset(pDirPtr, 0, BLOCK_SIZE);
-            pDirPtrIndex = 0;
-            //link dirPtr with parent inoPtr, write to disk, modify pBlkIndex
-            int pFreeBlkIndex = GetFreeBlockNum();
-            pInoPtr->dirBlockPtr[1] = pFreeBlkIndex;
-            PutInode(pInoIndex, pInoPtr);
-            pBlkIndex = pFreeBlkIndex;
-            //set bitmap
-            SetBlockBitmap(pFreeBlkIndex);
-            //update file sys info
-            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-            pFileSysInfo->numAllocBlocks++;
-            pFileSysInfo->numFreeBlocks--;
-            DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-            //printf("myMakeDir()... if full...pInoIndex = %d, pFreeBlkIndex = %d...\n", pInoIndex, pFreeBlkIndex);
-        } else {
-            if (pInoPtr->indirBlockPtr == 0) {
-                //init pDirPtr, pDirPtrIndex
-                memset(pDirPtr, 0, BLOCK_SIZE);
-                pDirPtrIndex = 0;
-                //link indirPtr with parent inoPtr
-                int pFreeBlkIndex = GetFreeBlockNum();
-                pInoPtr->indirBlockPtr = pFreeBlkIndex;
-                PutInode(pInoIndex, pInoPtr);
-                //set bitmap
-                SetBlockBitmap(pFreeBlkIndex);
-                //update file sys info for indirPtr
-                DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                pFileSysInfo->numAllocBlocks++;
-                pFileSysInfo->numFreeBlocks--;
-                DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                printf("myMakeDir()... if full...pInoIndex = %d, pInoPtr->indirBlockPtr = %d, pFreeBlkIndex = %d...\n",
-                       pInoIndex, pInoPtr->indirBlockPtr, pFreeBlkIndex);
-
-                //get & set indirPtr, write to disk
-                char *pIndirBlkPtr = (char *) malloc(BLOCK_SIZE);
-                memset(pIndirBlkPtr, 0, BLOCK_SIZE);
-                int *pIndirPtr = (int *) pIndirBlkPtr;
-                int pFreeBlkIndex2 = GetFreeBlockNum();
-                pIndirPtr[0] = pFreeBlkIndex2;
-                DevWriteBlock(pFreeBlkIndex, (char *) pIndirPtr);
-                //set bitmap
-                SetBlockBitmap(pFreeBlkIndex2);
-                //update file sys info for indirPtr
-                DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                pFileSysInfo->numAllocBlocks++;
-                pFileSysInfo->numFreeBlocks--;
-                DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                printf("myMakeDir()... if full... pInoIndex = %d, pFreeBlkIndex2 = %d, pIndirPtr[0] = %d...\n",
-                       pInoIndex, pFreeBlkIndex2, pIndirPtr[0]);
-
-                //modify pBlkIndex
-                pBlkIndex = pFreeBlkIndex2;
-                //free
-                free(pIndirBlkPtr);
+                    return true;
+                } else if (j == NUM_OF_DIRENT_PER_BLOCK - 1)
+                    *is_full = true;
             } else {
-                //get indirPtr, link dirPtr with parent inoPtr, write to disk, modify pBlkIndex
-                char *tmpBlk = (char *) malloc(BLOCK_SIZE);
-                DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
-                int *indirPtr = (int *) tmpBlk;
+                //printf("zzz...[%d][%d].name = %s\n",i , j, dirPtr[j].name);
+                //if file is already exist
+                if (strcmp(dirPtr[j].name, currentFileName) == 0) {
+                    //set retDirPtr, retDirPtrIndex
+                    copyDirEnt(retDirPtr, dirPtr);
+                    *retDirPtrIndex = j;
+                    *retBlkIndex = root->dirBlockPtr[i];
+                    //printf("yyy... inoIndex = %d, root->dirBloPtr[0] = %d, [1] = %d, indirect = %d\n",*inoIndex, root->dirBlockPtr[0], root->dirBlockPtr[1], root->indirBlockPtr);
 
-                for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-                    if (indirPtr[i] == 0) {
-                        //init pDirPtr, pDirPtrIndex
-                        memset(pDirPtr, 0, BLOCK_SIZE);
-                        pDirPtrIndex = 0;
-                        int pFreeBlkIndex = GetFreeBlockNum();
-                        indirPtr[i] = pFreeBlkIndex;
-                        DevWriteBlock(pInoPtr->indirBlockPtr, (char *) indirPtr);
-                        pBlkIndex = pFreeBlkIndex;
-                        //set bitmap
-                        SetBlockBitmap(pFreeBlkIndex);
-                        //update file sys info
-                        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                        pFileSysInfo->numAllocBlocks++;
-                        pFileSysInfo->numFreeBlocks--;
-                        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                        printf("myMakeDir()... if full & indirect != 0... indirPtr[%d] = %d, pBlkIndex = %d\n", i,
-                               indirPtr[i], pBlkIndex);
-                    }
+                    //free
+                    free(root);
+                    free(blkPtr);
+
+                    return true;
                 }
-                free(tmpBlk);
             }
         }
-        //free
-        free(pInoPtr);
     }
+    //check indir pointer in not 0
+    if (root->indirBlockPtr != 0) {
+        //get indirect block, cast to indirect block
+        DevReadBlock(root->indirBlockPtr, blkPtr);
+        int *indirect = (int *) blkPtr;
 
-    //get free inode index, block index
-    int cFreeInoIndex = GetFreeInodeNum();
-    int cFreeBlkIndex = GetFreeBlockNum();
-    //printf("cFreeInoIndex = %d, cFreeBlkIndex = %d...\n", cFreeInoIndex, cFreeBlkIndex);
+        //check indirect block
+        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+            //printf("xxx...indirect[%d] = %d\n", i, indirect[i]);
+            //read blcok, cast to DirEntry
+            //check indirect[i] is 0 => if 0, no more block is alloced
+            if (indirect[i] != 0)
+                DevReadBlock(indirect[i], blkPtr2);
+            else
+                break;
+            DirEntry *dirPtr = (DirEntry *) blkPtr2;
 
-    //set parent dirPtr, write to disk
-    strcpy(pDirPtr[pDirPtrIndex].name, m->array[depth]);
-    pDirPtr[pDirPtrIndex].inodeNum = cFreeInoIndex;
-    DevWriteBlock(pBlkIndex, (char *) pDirPtr);
-    printf("myMakeDir()... pBlkIndex = %d, pDirPtr[%d].name = %s...\n", pBlkIndex, pDirPtrIndex,
-           pDirPtr[pDirPtrIndex].name);
-    //make child dirBlk, write to disk
-    char *cBlkPtr = (char *) malloc(BLOCK_SIZE);
-    memset(cBlkPtr, 0, BLOCK_SIZE);
-    DirEntry *cDirPtr = (DirEntry *) cBlkPtr;
-    strcpy(cDirPtr[0].name, ".");
-    cDirPtr[0].inodeNum = cFreeInoIndex;
-    strcpy(cDirPtr[1].name, "..");
-    cDirPtr[1].inodeNum = pInoIndex;
-    DevWriteBlock(cFreeBlkIndex, (char *) cDirPtr);
-    //printf("cDirPtr[0].inodeNum = %d, cDirPtr[1].inodeNum = %d...\n", cDirPtr[0].inodeNum, cDirPtr[1].inodeNum);
-
-    //set child inoPtr, write to disk
-    Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
-    memset(cInoPtr, 0, sizeof(Inode));
-    GetInode(cFreeInoIndex, cInoPtr);
-    cInoPtr->type = FILE_TYPE_DIR;
-    cInoPtr->size = 0;
-    cInoPtr->dirBlockPtr[0] = cFreeBlkIndex;
-    cInoPtr->dirBlockPtr[1] = 0;
-    cInoPtr->indirBlockPtr = 0;
-    PutInode(cFreeInoIndex, cInoPtr);
-    //printf("cInoPtr->dirBlockPtr[0] = %d, [1] = %d, indirec = %d...\n", cInoPtr->dirBlockPtr[0], cInoPtr->dirBlockPtr[1], cInoPtr->indirBlockPtr);
-
-    //set bitmap
-    SetInodeBitmap(cFreeInoIndex);
-    SetBlockBitmap(cFreeBlkIndex);
-
-    //get & update file sys info, write to disk
-    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-    pFileSysInfo->numAllocInodes++;
-    pFileSysInfo->numAllocBlocks++;
-    pFileSysInfo->numFreeBlocks--;
-    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-
-    //free  malloc
-    free(cBlkPtr);
-    free(cInoPtr);
-    return true;
+            //compare paresed name with DirEntry's name
+            for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+                //printf("www...[%d][%d].name = '%s'\n",i, j, dirPtr[j].name);
+                if (0) {
+                    //if file name is ""
+                    if (strcmp(dirPtr[j].name, "") == 0) {
+                        //printf("vvv...indirect[%d], dirPtr[%d].name = '%s'\n",i, j, dirPtr[j].name);
+                        //set retDirPtr, retDirPtrIndex, retBlkIndex
+                        copyDirEnt(retDirPtr, dirPtr);
+                        *retDirPtrIndex = j;
+                        *retBlkIndex = indirect[i];
+                        *is_full = false;
+                        //free
+                        free(root);
+                        free(blkPtr);
+                        free(blkPtr2);
+                        return true;
+                    } else if (j == NUM_OF_DIRENT_PER_BLOCK - 1)
+                        *is_full = true;
+                } else {
+                    //printf("uuu\n");
+                    //if file is already exist
+                    if (strcmp(dirPtr[j].name, currentFileName) == 0) {
+                        //set retDirPtr, retDirPtrIndex
+                        copyDirEnt(retDirPtr, dirPtr);
+                        *retDirPtrIndex = j;
+                        *retBlkIndex = indirect[i];
+                        //free
+                        free(root);
+                        free(blkPtr);
+                        free(blkPtr2);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    //printf("findName end...\n");
+    //if not found, free
+    free(root);
+    free(blkPtr);
+    free(blkPtr2);
+    return false;
 }
 
+bool
+findNameNull(const char *currentFileName, int inoIndex, DirEntry *retDirPtr, int *retDirPtrIndex,
+             int *retBlkIndex, bool *is_full) {
+    //stop condition
+    //if (m != NULL && currentFileName == NULL)
+    if (currentFileName == NULL)
+        return false;
+    //if(m != NULL && (strcmp(currentFileName, "") != 0) ) printf("\nsearching name : %s\n", currentFileName);
+    *is_full = false;
+    //get current inode
+    Inode *root = (Inode *) malloc(sizeof(Inode));
+    GetInode(inoIndex, root);
+    //printf("findName start...inoIndex = %d, retDirPtrIndex = %d, retBlkIndex = %d\n", *inoIndex, *retDirPtrIndex, *retBlkIndex);
+    //alloc memory
+    char *blkPtr = (char *) malloc(BLOCK_SIZE);
+    char *blkPtr2 = (char *) malloc(BLOCK_SIZE);
+    //check file name is already exist
+    //at direct ptr
+    for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
+        //read blcok, cast to DirEntry
+        //check dirBlkPtr is 0 => if 0, no more meaningful block is alloced
+        if (root->dirBlockPtr[i] != 0)
+            DevReadBlock(root->dirBlockPtr[i], blkPtr);
+        else {
+            //printf("root->dirBlockPtr[%d] = %d\n", i, root->dirBlockPtr[i]);
+            break;
+        }
+        DirEntry *dirPtr = (DirEntry *) blkPtr;
+
+        //compare paresed name with DirEntry's name
+        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+            if (1) {
+                //printf("eee...[%d][%d].name = '%s'\n", i, j, dirPtr[j].name);
+                //if file name is ""
+                if (strcmp(dirPtr[j].name, "") == 0) {
+                    //set retDirPtr, retDirPtrIndex, retBlkIndex
+                    copyDirEnt(retDirPtr, dirPtr);
+                    *retDirPtrIndex = j;
+                    *retBlkIndex = root->dirBlockPtr[i];
+                    *is_full = false;
+                    //printf("ccc...inoIndex = %d, retDirPtrIndex = %d, retBlkIndex = %d\n", *inoIndex, *retDirPtrIndex, *retBlkIndex);
+                    //free
+                    free(root);
+                    free(blkPtr);
+
+                    return true;
+                } else if (j == NUM_OF_DIRENT_PER_BLOCK - 1)
+                    *is_full = true;
+            }
+        }
+    }
+    //check indir pointer in not 0
+    if (root->indirBlockPtr != 0) {
+        //get indirect block, cast to indirect block
+        DevReadBlock(root->indirBlockPtr, blkPtr);
+        int *indirect = (int *) blkPtr;
+
+        //check indirect block
+        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+            //printf("xxx...indirect[%d] = %d\n", i, indirect[i]);
+            //read blcok, cast to DirEntry
+            //check indirect[i] is 0 => if 0, no more block is alloced
+            if (indirect[i] != 0)
+                DevReadBlock(indirect[i], blkPtr2);
+            else
+                break;
+            DirEntry *dirPtr = (DirEntry *) blkPtr2;
+
+            //compare paresed name with DirEntry's name
+            for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+                //printf("www...[%d][%d].name = '%s'\n",i, j, dirPtr[j].name);
+                if (1) {
+                    //if file name is ""
+                    if (strcmp(dirPtr[j].name, "") == 0) {
+                        //printf("vvv...indirect[%d], dirPtr[%d].name = '%s'\n",i, j, dirPtr[j].name);
+                        //set retDirPtr, retDirPtrIndex, retBlkIndex
+                        copyDirEnt(retDirPtr, dirPtr);
+                        *retDirPtrIndex = j;
+                        *retBlkIndex = indirect[i];
+                        *is_full = false;
+                        //free
+                        free(root);
+                        free(blkPtr);
+                        free(blkPtr2);
+                        return true;
+                    } else if (j == NUM_OF_DIRENT_PER_BLOCK - 1)
+                        *is_full = true;
+                }
+            }
+        }
+    }
+    //printf("findName end...\n");
+    //if not found, free
+    free(root);
+    free(blkPtr);
+    free(blkPtr2);
+    return false;
+}
 
 int OpenFile(const char *szFileName, OpenFlag flag) {
 
@@ -371,9 +439,378 @@ int MakeDir(const char *szDirName) {
     int inoIndex = 0;
 
     //for save string
+
+    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
+    int arr_index = 0;
+    //ㅎㅈ쓰거
+    char *input_path = (char *) malloc(sizeof(szDirName));
+    strcpy(input_path, szDirName);
+    char *temp_Ptr = strtok(input_path, "/");
+
+    while (temp_Ptr != NULL) {
+        strcpy(arr[arr_index++], temp_Ptr);
+        temp_Ptr = strtok(NULL, "/");
+    }
+    int depth = 0;
+    DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
+    int retDirPtrIndex = 0;
+    int retBlkIndex = 19;
+    bool is_full = false;
+    //find
+    while (findNameNotNULL(arr[depth], inoIndex, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
+        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
+        depth++;
+    }
+    //make dir
+    if (arr[depth + 1][0] == '\0') {
+        findNameNull(arr[depth], inoIndex, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);//이거 용도 뭐지
+
+        //myMakeDir(arr[depth], retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex, is_full);
+        DirEntry *pDirPtr = retDirPtr;
+        int pDirPtrIndex = retDirPtrIndex;
+        int pInoIndex = inoIndex;
+        int pBlkIndex = retBlkIndex;
+
+        //if pDirPtr is full
+        if (is_full) {
+            //get parent inoPtr
+            Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
+            GetInode(pInoIndex, pInoPtr);
+
+            if (pInoPtr->dirBlockPtr[1] == 0) {
+                //init pDirPtr, pDirPtrIndex
+                memset(pDirPtr, 0, BLOCK_SIZE);
+                pDirPtrIndex = 0;
+                //link dirPtr with parent inoPtr, write to disk, modify pBlkIndex
+                int pFreeBlkIndex = GetFreeBlockNum();
+                pInoPtr->dirBlockPtr[1] = pFreeBlkIndex;
+                PutInode(pInoIndex, pInoPtr);
+                pBlkIndex = pFreeBlkIndex;
+                //set bitmap
+                SetBlockBitmap(pFreeBlkIndex);
+                //update file sys info
+                DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                pFileSysInfo->numAllocBlocks++;
+                pFileSysInfo->numFreeBlocks--;
+                DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                //printf("myMakeDir()... if full...pInoIndex = %d, pFreeBlkIndex = %d...\n", pInoIndex, pFreeBlkIndex);
+            } else {
+                if (pInoPtr->indirBlockPtr == 0) {
+                    //init pDirPtr, pDirPtrIndex
+                    memset(pDirPtr, 0, BLOCK_SIZE);
+                    pDirPtrIndex = 0;
+                    //link indirPtr with parent inoPtr
+                    int pFreeBlkIndex = GetFreeBlockNum();
+                    pInoPtr->indirBlockPtr = pFreeBlkIndex;
+                    PutInode(pInoIndex, pInoPtr);
+                    //set bitmap
+                    SetBlockBitmap(pFreeBlkIndex);
+                    //update file sys info for indirPtr
+                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    pFileSysInfo->numAllocBlocks++;
+                    pFileSysInfo->numFreeBlocks--;
+                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //printf("myMakeDir()... if full...pInoIndex = %d, pInoPtr->indirBlockPtr = %d, pFreeBlkIndex = %d...\n", pInoIndex, pInoPtr->indirBlockPtr ,pFreeBlkIndex);
+
+                    //get & set indirPtr, write to disk
+                    char *pIndirBlkPtr = (char *) malloc(BLOCK_SIZE);
+                    memset(pIndirBlkPtr, 0, BLOCK_SIZE);
+                    int *pIndirPtr = (int *) pIndirBlkPtr;
+                    int pFreeBlkIndex2 = GetFreeBlockNum();
+                    pIndirPtr[0] = pFreeBlkIndex2;
+                    DevWriteBlock(pFreeBlkIndex, (char *) pIndirPtr);
+                    //set bitmap
+                    SetBlockBitmap(pFreeBlkIndex2);
+                    //update file sys info for indirPtr
+                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    pFileSysInfo->numAllocBlocks++;
+                    pFileSysInfo->numFreeBlocks--;
+                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //printf("myMakeDir()... if full... pInoIndex = %d, pFreeBlkIndex2 = %d, pIndirPtr[0] = %d...\n", pInoIndex, pFreeBlkIndex2, pIndirPtr[0]);
+
+                    //modify pBlkIndex
+                    pBlkIndex = pFreeBlkIndex2;
+                    //free
+                    free(pIndirBlkPtr);
+                } else {
+                    //get indirPtr, link dirPtr with parent inoPtr, write to disk, modify pBlkIndex
+                    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
+                    DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
+                    int *indirPtr = (int *) tmpBlk;
+
+                    for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+                        if (indirPtr[i] == 0) {
+                            //init pDirPtr, pDirPtrIndex
+                            memset(pDirPtr, 0, BLOCK_SIZE);
+                            pDirPtrIndex = 0;
+                            int pFreeBlkIndex = GetFreeBlockNum();
+                            indirPtr[i] = pFreeBlkIndex;
+                            DevWriteBlock(pInoPtr->indirBlockPtr, (char *) indirPtr);
+                            pBlkIndex = pFreeBlkIndex;
+                            //set bitmap
+                            SetBlockBitmap(pFreeBlkIndex);
+                            //update file sys info
+                            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                            pFileSysInfo->numAllocBlocks++;
+                            pFileSysInfo->numFreeBlocks--;
+                            DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                            //printf("myMakeDir()... if full & indirect != 0... indirPtr[%d] = %d, pBlkIndex = %d\n", i, indirPtr[i], pBlkIndex);
+                        }
+                    }
+                    free(tmpBlk);
+                }
+            }
+            //free
+            free(pInoPtr);
+        }
+
+        //get free inode index, block index
+        int cFreeInoIndex = GetFreeInodeNum();
+        int cFreeBlkIndex = GetFreeBlockNum();
+        //printf("cFreeInoIndex = %d, cFreeBlkIndex = %d...\n", cFreeInoIndex, cFreeBlkIndex);
+
+        //set parent dirPtr, write to disk
+        strcpy(pDirPtr[pDirPtrIndex].name, arr[depth]);
+        pDirPtr[pDirPtrIndex].inodeNum = cFreeInoIndex;
+        DevWriteBlock(pBlkIndex, (char *) pDirPtr);
+        //printf("myMakeDir()... pBlkIndex = %d, pDirPtr[%d].name = %s, [].inodeNum = %d...\n", pBlkIndex, pDirPtrIndex, pDirPtr[pDirPtrIndex].name, pDirPtr[pDirPtrIndex].inodeNum);
+        //make child dirBlk, write to disk
+        char *cBlkPtr = (char *) malloc(BLOCK_SIZE);
+        memset(cBlkPtr, 0, BLOCK_SIZE);
+        DirEntry *cDirPtr = (DirEntry *) cBlkPtr;
+        strcpy(cDirPtr[0].name, ".");
+        cDirPtr[0].inodeNum = cFreeInoIndex;
+        strcpy(cDirPtr[1].name, "..");
+        cDirPtr[1].inodeNum = pInoIndex;
+        DevWriteBlock(cFreeBlkIndex, (char *) cDirPtr);
+        //printf("cDirPtr[0].inodeNum = %d, cDirPtr[1].inodeNum = %d...\n", cDirPtr[0].inodeNum, cDirPtr[1].inodeNum);
+        //printf("cDirPtr[0].name = '%s', [1].name = '%s', [2].name = '%s', [3].name = '%s'...\n", cDirPtr[0].name, cDirPtr[1].name, cDirPtr[2].name, cDirPtr[3].name);
+        //set child inoPtr, write to disk
+        Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
+        memset(cInoPtr, 0, sizeof(Inode));
+        GetInode(cFreeInoIndex, cInoPtr);
+        cInoPtr->type = FILE_TYPE_DIR;
+        cInoPtr->size = 0;
+        cInoPtr->dirBlockPtr[0] = cFreeBlkIndex;
+        cInoPtr->dirBlockPtr[1] = 0;
+        cInoPtr->indirBlockPtr = 0;
+        PutInode(cFreeInoIndex, cInoPtr);
+        //printf("cInoPtr->dirBlockPtr[0] = %d, [1] = %d, indirec = %d...\n", cInoPtr->dirBlockPtr[0], cInoPtr->dirBlockPtr[1], cInoPtr->indirBlockPtr);
+
+        //set bitmap
+        SetInodeBitmap(cFreeInoIndex);
+        SetBlockBitmap(cFreeBlkIndex);
+
+        //get & update file sys info, write to disk
+        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+        pFileSysInfo->numAllocInodes++;
+        pFileSysInfo->numAllocBlocks++;
+        pFileSysInfo->numFreeBlocks--;
+        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+
+        //free  malloc
+        free(cBlkPtr);
+        free(cInoPtr);
+
+        return 0;
+
+    }
+}
+
+bool myRemoveDir(DirEntry *pDirPtr, int pDirPtrIndex, int pInoIndex, int pBlkIndex) {
+    //get parent inode, child inode
+    Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
+    GetInode(pInoIndex, pInoPtr);
+    Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
+    int cInoIndex = pDirPtr[pDirPtrIndex].inodeNum;
+    GetInode(cInoIndex, cInoPtr);
+    //printf("pInoIndex = %d, pBlkIndex = %d, pDirPtr[%d].name = %s, [].inodeNum = %d, cInoIndex = %d...\n", pInoIndex, pBlkIndex, pDirPtrIndex, pDirPtr[pDirPtrIndex].name, pDirPtr[pDirPtrIndex].inodeNum ,cInoIndex);
+    //get tmpBlk
+    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
+    char *tmpBlk2 = (char *) malloc(BLOCK_SIZE);
+
+    bool empty = true;
+    //check if child dir is empty at direct
+    for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
+        //get dirBlk, cast to DirEntry*
+        if (cInoPtr->dirBlockPtr[i] != 0)
+            DevReadBlock(cInoPtr->dirBlockPtr[i], tmpBlk);
+        else
+            continue;
+        DirEntry *dirPtr = (DirEntry *) tmpBlk;
+
+        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+            //if found corresponding dir name
+            if (strcmp(dirPtr[j].name, ".") == 0 || strcmp(dirPtr[j].name, "..") == 0) {
+                //printf("dirPtr[%d].name = '%s'\n", j, dirPtr[j].name);
+                continue;
+            }
+            if (strcmp(dirPtr[j].name, "") != 0) {
+                empty = false;
+                //printf("dirPtr[%d].name = '%s'\n", j, dirPtr[j].name);
+            }
+        }
+    }
+    //check if child dir is empty at indirect
+    if (cInoPtr->indirBlockPtr != 0 && empty) {
+        //get indirPtr, cast to int*
+        DevReadBlock(cInoPtr->indirBlockPtr, tmpBlk);
+        int *indirPtr = (int *) tmpBlk;
+
+        for (int k = 0; k < BLOCK_SIZE / sizeof(int); k++) {
+            //if not empty dir block
+            if (indirPtr[k] != 0) {
+                //get block, cast to DirEntry*
+                DevReadBlock(indirPtr[k], tmpBlk2);
+                DirEntry *dirPtr = (DirEntry *) tmpBlk2;
+
+                for (int l = 0; l < NUM_OF_DIRENT_PER_BLOCK; l++) {
+                    if (strcmp(dirPtr[l].name, "") != 0)
+                        empty = false;
+                }
+            }
+                //if empty dir block
+            else
+                continue;
+        }
+    }
+    //if empty dir
+    if (empty) {
+        //reset dirEntry block
+        memset(tmpBlk, 0, BLOCK_SIZE);
+        DevWriteBlock(cInoPtr->dirBlockPtr[0], tmpBlk);
+
+        //reset child inode
+        memset(cInoPtr, 0, sizeof(Inode));
+        PutInode(pDirPtr[pDirPtrIndex].inodeNum, cInoPtr);
+
+        //reset bitmap
+        ResetBlockBitmap(cInoPtr->dirBlockPtr[0]);
+        ResetInodeBitmap(pDirPtr[pDirPtrIndex].inodeNum);
+
+        //update fs info
+        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+        pFileSysInfo->numAllocBlocks--;
+        pFileSysInfo->numFreeBlocks++;
+        pFileSysInfo->numAllocInodes--;
+
+        //Modify parent dirEntry, write to disk
+        strcpy(pDirPtr[pDirPtrIndex].name, "");
+        pDirPtr[pDirPtrIndex].inodeNum = 0;
+        DevWriteBlock(pBlkIndex, (char *) pDirPtr);
+
+        empty = true;
+        int moveIndex = 0;
+        //modify parent inode
+        //check if emtpy dirEntryPtr
+        bool optimize = false;
+        for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+            if (i != pDirPtrIndex && strcmp(pDirPtr[i].name, "") != 0) {
+                empty = false;
+                if (i > pDirPtrIndex) {
+                    optimize = true;
+                    moveIndex = i;
+                }
+            }
+        }
+        //optimize dirEntry
+        if (optimize) {
+            strcpy(pDirPtr[pDirPtrIndex].name, pDirPtr[moveIndex].name);
+            pDirPtr[pDirPtrIndex].inodeNum = pDirPtr[moveIndex].inodeNum;
+            strcmp(pDirPtr[moveIndex].name, "");
+            pDirPtr[moveIndex].inodeNum = 0;
+            DevWriteBlock(pBlkIndex, (char *) pDirPtr);
+        }
+        //if empty dirEntry
+        if (empty) {
+            //at direct
+            if (pInoPtr->dirBlockPtr[1] == pBlkIndex) {
+                //unlink, reset data block
+                pInoPtr->dirBlockPtr[1] = 0;
+                memset(tmpBlk, 0, BLOCK_SIZE);
+                DevWriteBlock(pBlkIndex, tmpBlk);
+                //reset bitmap, update fs info
+                ResetBlockBitmap(pBlkIndex);
+                DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                pFileSysInfo->numAllocBlocks--;
+                pFileSysInfo->numFreeBlocks++;
+                DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+            }
+                //at indirect
+            else if (pInoPtr->indirBlockPtr != 0) {
+                //get indir block, cast to int*
+                DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
+                int *indirPtr = (int *) tmpBlk;
+                int moveToIndex = 0;
+                int moveFromIndex = 0;
+                empty = true;
+                optimize = false;
+                for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+                    //if found empty block at indirect, reset data block
+                    if (indirPtr[i] == pBlkIndex) {
+                        moveToIndex = i;
+                        //unlink, reset data block
+                        indirPtr[i] = 0;
+                        memset(tmpBlk2, 0, BLOCK_SIZE);
+                        DevWriteBlock(pBlkIndex, tmpBlk2);
+                        //reset bitmap, update fs info
+                        ResetBlockBitmap(pBlkIndex);
+                        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                        pFileSysInfo->numAllocBlocks--;
+                        pFileSysInfo->numFreeBlocks++;
+                        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    }
+                    if (indirPtr[i] != 0) {
+                        empty = false;
+                        if (i > moveToIndex) {
+                            optimize = true;
+                            moveFromIndex = i;
+                        }
+                    }
+                }
+                //optimize indirPtr
+                if (optimize) {
+                    indirPtr[moveToIndex] = indirPtr[moveFromIndex];
+                    indirPtr[moveFromIndex] = 0;
+                    DevWriteBlock(pInoPtr->indirBlockPtr, (char *) indirPtr);
+                }
+                //if all indirPtr is empty
+                if (empty) {
+                    //reset bitmap, update fs info
+                    ResetBlockBitmap(pInoPtr->indirBlockPtr);
+                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    pFileSysInfo->numAllocBlocks--;
+                    pFileSysInfo->numFreeBlocks++;
+                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //unlink, reset block data
+                    memset(tmpBlk2, 0, BLOCK_SIZE);
+                    DevWriteBlock(pInoPtr->indirBlockPtr, tmpBlk2);
+                    pInoPtr->indirBlockPtr = 0;
+                }
+            }
+        }
+
+        //update fsInfo
+        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+    } else {
+        //free
+        free(pInoPtr);
+        free(cInoPtr);
+        free(tmpBlk);
+        free(tmpBlk2);
+        //if not empty dir
+
+        return false;
+    }
+    return true;
+}
+
+int RemoveDir(const char *szDirName) {
+    int inoIndex = 0;
+
+    //for save string
     Matrix m;
     initMatrix(&m, 2);
-
     //split path
     char *path = (char *) malloc(sizeof(szDirName));
     strcpy(path, szDirName);
@@ -400,237 +837,22 @@ int MakeDir(const char *szDirName) {
     int retDirPtrIndex = 0;
     int retBlkIndex = 19;
     bool is_full = false;
+
     //find
-    for (int i = 0; i < arr_index - 1; i++) { //마지막 인덱스는 빼자
-        findName(arr[depth], &inoIndex, &m, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
+    while (findName(arr[depth], &inoIndex, &m, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
+        //if found dir name to remove
+        if (m.used == depth + 1) {
+            //printf("RemoveDir()... inoIndex = %d, retDirPtr[%d].name = %s, [].inodeNum = %d...\n", inoIndex, retDirPtrIndex, retDirPtr[retDirPtrIndex].name, retDirPtr[retDirPtrIndex].inodeNum);
+            //remove dir
+            if (myRemoveDir(retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex))
+                return 0;
+        }
+        //printf("RemoveDir()... inoIndex = %d, retDirPtr[%d].name = %s, [].inodeNum = %d...\n", inoIndex, retDirPtrIndex, retDirPtr[retDirPtrIndex].name, retDirPtr[retDirPtrIndex].inodeNum);
         inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
         depth++;
     }
-//        while (findName(arr[depth],&inoIndex, &m,  retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
-//        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
-//        depth++;
-//    }
-    //make dir
-    if (arr[depth + 1][0] == '\0') {
-        findName(arr[0], &inoIndex, NULL, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
-        if (myMakeDir(&m, depth, retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex, is_full)) {
-            freeMatrix(&m);
-            return 0;
-        } else {
-            freeMatrix(&m);
-            return -1;
-        }
-    } else {
-        freeMatrix(&m);
-        return -1;
-    }
-}
-
-bool myRemoveDir(Matrix *m, int depth, DirEntry *pDirPtr, int pDirPtrIndex, int pInoIndex, int pBlkIndex) {
-    //get parent inode, child inode
-    Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
-    GetInode(pInoIndex, pInoPtr);
-    Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
-    int cInoIndex = pDirPtr[pDirPtrIndex].inodeNum;
-    GetInode(cInoIndex, cInoPtr);
-
-    //get tmpBlk
-    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
-    char *tmpBlk2 = (char *) malloc(BLOCK_SIZE);
-
-    bool empty = true;
-    //check empty dir at direct
-    for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
-        //get dirBlk, cast to DirEntry*
-        if (cInoPtr->dirBlockPtr != 0)
-            DevReadBlock(cInoPtr->dirBlockPtr[i], tmpBlk);
-        else
-            continue;
-        DirEntry *dirPtr = (DirEntry *) tmpBlk;
-
-        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
-            //if found corresponding dir name
-            if (strcmp(dirPtr[j].name, ".") == 0 || strcmp(dirPtr[j].name, "..") == 0)
-                continue;
-            if (strcmp(dirPtr[j].name, "") != 0)
-                empty = false;
-        }
-    }
-    //at indirect
-    if (cInoPtr->indirBlockPtr != 0 && empty) {
-        //get indirPtr, cast to int*
-        DevReadBlock(cInoPtr->indirBlockPtr, tmpBlk);
-        int *indirPtr = (int *) tmpBlk;
-
-        for (int k = 0; k < BLOCK_SIZE / sizeof(int); k++) {
-            //if not empty dir block
-            if (indirPtr[k] != 0) {
-                //get block, cast to DirEntry*
-
-                DevReadBlock(indirPtr[k], tmpBlk2);
-                DirEntry *dirPtr = (DirEntry *) tmpBlk2;
-
-                for (int l = 0; l < NUM_OF_DIRENT_PER_BLOCK; l++) {
-                    if (strcmp(dirPtr[l].name, "") != 0)
-                        empty = false;
-                }
-            }
-                //if empty dir block
-            else {
-                continue;
-            }
-        }
-    }
-    //if empty dir
-    if (empty) {
-        //reset dirEntry block
-        memset(tmpBlk, 0, BLOCK_SIZE);
-        DevWriteBlock(cInoPtr->dirBlockPtr[0], tmpBlk);
-
-        //reset child inode
-        memset(cInoPtr, 0, sizeof(Inode));
-        PutInode(pDirPtr[pDirPtrIndex].inodeNum, cInoPtr);
-
-        //reset bitmap
-        ResetBlockBitmap(cInoPtr->dirBlockPtr[0]);
-        ResetInodeBitmap(pDirPtr[pDirPtrIndex].inodeNum);
-
-        //update fs info
-        if (pFileSysInfo == NULL) {
-            pFileSysInfo = (FileSysInfo *) malloc(BLOCK_SIZE);
-            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-        }
-        pFileSysInfo->numAllocBlocks--;
-        pFileSysInfo->numFreeBlocks++;
-        pFileSysInfo->numAllocInodes--;
-
-        //Modify parent dirEntry, write to disk
-        strcpy(pDirPtr[pDirPtrIndex].name, "");
-        pDirPtr[pDirPtrIndex].inodeNum = 0;
-        DevWriteBlock(pBlkIndex, (char *) pDirPtr);
-
-        //modify parent inode
-        //check if emtpy dirEntryPtr
-        bool empty = true;
-        for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
-            if (strcmp(pDirPtr[i].name, "") != 0)
-                empty = false;
-        }
-        //optimize dirEntry
-        if (!empty) {
-            for (int i = NUM_OF_DIRENT_PER_BLOCK - 1; i >= 0; i--) {
-                //if found not empty dirEntry, move to empty dirEntry
-                if (strcmp(pDirPtr[i].name, "") != 0) {
-                    strcpy(pDirPtr[pDirPtrIndex].name, pDirPtr[i].name);
-                    pDirPtr[pDirPtrIndex].inodeNum = pDirPtr[i].inodeNum;
-                    strcmp(pDirPtr[i].name, "");
-                    pDirPtr[i].inodeNum = 0;
-                    DevWriteBlock(pBlkIndex, (char *) pDirPtr);
-                    break;
-                }
-            }
-        }
-        //if empty dirEntryPtr
-        if (empty) {
-            //at direct
-            if (pInoPtr->dirBlockPtr[1] == pBlkIndex) {
-                //unlink, reset data block
-                pInoPtr->dirBlockPtr[1] = 0;
-                memset(tmpBlk, 0, BLOCK_SIZE);
-                DevWriteBlock(pBlkIndex, tmpBlk);
-                pFileSysInfo->numAllocBlocks--;
-                pFileSysInfo->numFreeBlocks++;
-            }
-
-            //at indirect
-            if (pInoPtr->indirBlockPtr != 0) {
-                //get indir block, cast to int*
-                DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
-                int *indirPtr = (int *) tmpBlk;
-                int indirPtrIndex = 0;
-
-                for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-                    //if found empty block at indirect, reset data block
-                    if (indirPtr[i] == pBlkIndex) {
-                        memset(tmpBlk, 0, BLOCK_SIZE);
-                        DevWriteBlock(pBlkIndex, tmpBlk);
-                        pFileSysInfo->numAllocBlocks--;
-                        pFileSysInfo->numFreeBlocks++;
-                        indirPtr[i] = 0;
-                        indirPtrIndex = i;
-                    }
-                    if (indirPtr[i] != 0)
-                        empty = false;
-                }
-                //optimize indirPtr
-                if (!empty) {
-                    for (int i = BLOCK_SIZE / sizeof(int) - 1; i >= 0; i--) {
-                        if (indirPtr[i] != 0) {
-                            indirPtr[indirPtrIndex] = i;
-                            indirPtr[i] = 0;
-                            DevWriteBlock(pInoPtr->indirBlockPtr, tmpBlk2);
-                        }
-                    }
-                }
-                //if all indirPtr is empty
-                if (empty) {
-                    //unlink, reset block data
-                    pInoPtr->indirBlockPtr = 0;
-                    DevWriteBlock(pInoPtr->indirBlockPtr, tmpBlk);
-                    pFileSysInfo->numAllocBlocks--;
-                    pFileSysInfo->numFreeBlocks++;
-                }
-            }
-        }
-
-        //update fsInfo
-        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-    } else {
-        //free
-        free(pInoPtr);
-        free(cInoPtr);
-        free(tmpBlk);
-        free(tmpBlk2);
-        //if not empty dir
-
-        return -1;
-    }
-}
-
-int RemoveDir(const char *szDirName) {
-//    int inoIndex = 0;
-//
-//    //for save string
-//    Matrix m;
-//    initMatrix(&m, 2);
-//    //split path
-//    char *path = (char *) malloc(sizeof(szDirName));
-//    strcpy(path, szDirName);
-//    char *parsePtr = strtok(path, "/");
-//    //parse, save string
-//    while (parsePtr != NULL) {
-//        insertMatrix(&m, parsePtr);
-//        parsePtr = strtok(NULL, "/");
-//    }
-//    free(path);
-//    int depth = 0;
-//    DirEntry *retDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
-//    int retDirPtrIndex = 0;
-//    int retBlkIndex = 19;
-//    bool is_full = false;
-//    //find
-//    while (findName(&inoIndex, &m, depth, retDirPtr,   &retDirPtrIndex, &retBlkIndex, &is_full)) {
-//        //if found dir name to remove
-//        if (m.array[depth + 1] == NULL) {
-//            //remove dir
-//            if (myRemoveDir(&m, depth, retDirPtr, retDirPtrIndex, inoIndex, retBlkIndex))
-//                return 0;
-//        }
-//        inoIndex = retDirPtr[retDirPtrIndex].inodeNum;
-//        depth++;
-//    }
-//    //if not found
-//    return -1;
+    //if not found
+    return -1;
 }
 
 int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEntrys) {
@@ -669,7 +891,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     //find
     while (findName(arr[depth], &inoIndex, &m, retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full)) {
         //if found dir name to make
-        if (arr[depth + 1][0] == '\0') {//ohyeah
+        if (m.used == depth + 1) {
             //get inode
             Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
             Inode *cInoPtr = (Inode *) malloc(sizeof(Inode));
@@ -689,7 +911,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
                         if (strcmp(dirPtr[j].name, "") != 0) {
                             //get child inode to get type
                             GetInode(dirPtr[j].inodeNum, cInoPtr);
-                            pDirEntry[count].type = (FileType) cInoPtr->type;
+                            pDirEntry[count].type = cInoPtr->type;
                             strcpy(pDirEntry[count].name, dirPtr[j].name);
                             pDirEntry[count].inodeNum = dirPtr[j].inodeNum;
                             count++;

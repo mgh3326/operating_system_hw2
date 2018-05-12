@@ -10,6 +10,33 @@
 #define INODE_SIZE 64
 
 int MakeDirtest(const char *szDirName);
+void PrintInodeBitmap(void)
+{
+    int i;
+    int count;
+    int* pBitmap = (int*)malloc(BLOCK_SIZE);
+
+    count = BLOCK_SIZE / sizeof(int);
+    DevReadBlock(2, (char*)pBitmap);
+    printf("Inode bitmap: ");
+    for (i = 0; i < count; i++)
+        printf("%d", pBitmap[i]);
+    printf("\n");
+}
+
+void PrintBlockBitmap(void)
+{
+    int i;
+    int count;
+    int* pBitmap = (int*)malloc(BLOCK_SIZE);
+
+    count = BLOCK_SIZE / sizeof(int);         /* bit ������ 64*8 ���� ���� */
+    DevReadBlock(1, (char*)pBitmap);
+    printf("Block bitmap");
+    for (i = 0; i < count; i++)
+        printf("%d", pBitmap[i]);
+    printf("\n");
+}
 
 void ListDirContents(const char *dirName) {
     int i;
@@ -58,19 +85,20 @@ int main() {
     ListDirContents("/home");
     ListDirContents("/etc");
 
-//    /* remove subdirectory of etc directory */
-//    for (i = 23; i >= 0; i--)
-//    {
-//        memset(dirName, 0, MAX_NAME_LEN);
-//        sprintf(dirName, "/etc/dev%d", i);
-//        RemoveDir(dirName);
-//    }
-//
-//    ListDirContents("/etc");
-//
-//    /* remove subdirectory of root directory except /home */
-//    RemoveDir("/etc");
-//    RemoveDir("/usr");
-//    RemoveDir("/tmp");
+    /* remove subdirectory of etc directory */
+    for (i = 23; i >= 0; i--)
+    {
+        memset(dirName, 0, MAX_NAME_LEN);
+        sprintf(dirName, "/etc/dev%d", i);
+        RemoveDir(dirName);
+    }
+
+    ListDirContents("/etc");
+
+    /* remove subdirectory of root directory except /home */
+    RemoveDir("/etc");
+    RemoveDir("/usr");
+    RemoveDir("/tmp");
+    PrintInodeBitmap(); PrintBlockBitmap();
 
 }
