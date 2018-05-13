@@ -21,13 +21,12 @@ int findNameNotNULL(const char *currentFileName, int inode_index, DirEntry *retu
     GetInode(inode_index, current_root);
 
     char *block_buf = (char *) malloc(BLOCK_SIZE);
-    DirEntry *dir_block = (DirEntry *) block_buf;
-
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {//다이렉트 노트 확인
         DevReadBlock(current_root->dirBlockPtr[i], block_buf);
         if (current_root->dirBlockPtr[i] == 0) {
             break;
         }
+        DirEntry *dir_block = (DirEntry *) block_buf;
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(dir_block[j].name, currentFileName) == 0) {
                 for (int dir_index = 0; dir_index < NUM_OF_DIRENT_PER_BLOCK; dir_index++) {
@@ -51,18 +50,15 @@ int findNameNotNULL(const char *currentFileName, int inode_index, DirEntry *retu
 
         for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
             if (indirect[i] == 0) {
-
                 break;
-
             } else {
                 DevReadBlock(indirect[i], block_indirect_buf);
-
             }
+
+            DirEntry *dir_block = (DirEntry *) block_indirect_buf;
 
 
             for (int blockindex = 0; blockindex < NUM_OF_DIRENT_PER_BLOCK; blockindex++) {
-                DirEntry *dir_block = (DirEntry *) block_indirect_buf;
-
                 if (strcmp(dir_block[blockindex].name, currentFileName) == 0) {
                     for (int dir_index = 0; dir_index < NUM_OF_DIRENT_PER_BLOCK; dir_index++) {
                         returnDirPtr[dir_index].inodeNum = dir_block[dir_index].inodeNum;
@@ -96,9 +92,8 @@ findNameNull(int inode_index, DirEntry *returnDirPtr, int *returnDirPtr_index, i
         if (current_root->dirBlockPtr[i] == 0) {
             break;
         }
+        DirEntry *dir_block = (DirEntry *) block_buf;
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
-            DirEntry *dir_block = (DirEntry *) block_buf;
-
             if (strcmp(dir_block[j].name, "") == 0) {
                 for (int dir_index = 0; dir_index < NUM_OF_DIRENT_PER_BLOCK; dir_index++) {
                     returnDirPtr[dir_index].inodeNum = dir_block[dir_index].inodeNum;
@@ -156,149 +151,174 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         strcpy(arr[arr_index++], temp_Ptr);
         temp_Ptr = strtok(NULL, "/");
     }
-    int oh_array_index = 0;
+    int depth = 0;
     DirEntry *returnDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int returnDirPtr_index = 0;
     int return_block_index = 19;
     //find
-    while (findNameNotNULL(arr[oh_array_index], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
-        if (arr_index == oh_array_index + 1) {
+    while (findNameNotNULL(arr[depth], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
+        if (arr_index == depth + 1) {
             FileDesc *fdPtr = (FileDesc *) pFileDescTable;
             for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
                 if (fdPtr[i].bUsed == 0) {
-                    fdPtr[i].bUsed = 1;
-                    fdPtr[i].fileOffset = 0;
+                    //set inode_index
                     fdPtr[i].inodeNum = returnDirPtr[returnDirPtr_index].inodeNum;
-
+                    fdPtr[i].fileOffset = 0;
+                    fdPtr[i].bUsed = 1;
                     return i;
                 }
             }
         }
-        oh_array_index++;
         inode_index = returnDirPtr[returnDirPtr_index].inodeNum;
-
+        depth++;
     }
-    if (flag != OPEN_FLAG_CREATE || oh_array_index >= arr_index)
-        return -1;
+    if (flag == OPEN_FLAG_CREATE && depth < arr_index) {
+        int temp = findNameNull(inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index);//이거 용도 뭐지
+//        findNameNULL(&inode_index,retDirPtr, &retDirPtrIndex, &retBlkIndex, &is_full);
+        DirEntry *pDirEntry = returnDirPtr;
+        int pDirPtrIndex = returnDirPtr_index;
+        int parent_inode_index = inode_index;
+        int parent_block_index = return_block_index;
+        if (temp == 0) //찼을때
+        {
+            //get parent inoPtr
+            Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
+            GetInode(parent_inode_index, pInoPtr);
 
-    int temp = findNameNull(inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index);//이거 용도 뭐지
-    DirEntry *pDirEntry = returnDirPtr;
-    int pDirPtrIndex = returnDirPtr_index;
-    int parent_inode_index = inode_index;
-    int parent_block_index = return_block_index;
-    if (temp == 0) //찼을때
-    {
-        //get parent inoPtr
-        Inode *pInoPtr = (Inode *) malloc(sizeof(Inode));
-        GetInode(parent_inode_index, pInoPtr);
-
-        if (pInoPtr->dirBlockPtr[1] == 0) {
-            //init pDirEntry, pDirPtrIndex
-            memset(pDirEntry, 0, BLOCK_SIZE);
-            pDirPtrIndex = 0;
-            //link dirPtr with parent inoPtr, write to disk, modify parent_block_index
-            int pFreeBlkIndex = GetFreeBlockNum();
-            pInoPtr->dirBlockPtr[1] = pFreeBlkIndex;
-            PutInode(parent_inode_index, pInoPtr);
-            parent_block_index = pFreeBlkIndex;
-            //set bitmap
-            SetBlockBitmap(pFreeBlkIndex);
-            //update file sys info
-            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-            pFileSysInfo->numAllocBlocks++;
-            pFileSysInfo->numFreeBlocks--;
-            DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-            //printf("myMakeDir()... if full...parent_inode_index = %d, pFreeBlkIndex = %d...\n", parent_inode_index, pFreeBlkIndex);
-        } else {
-            if (pInoPtr->indirBlockPtr == 0) {
+            if (pInoPtr->dirBlockPtr[1] == 0) {
+                //init pDirEntry, pDirPtrIndex
                 memset(pDirEntry, 0, BLOCK_SIZE);
                 pDirPtrIndex = 0;
+                //link dirPtr with parent inoPtr, write to disk, modify parent_block_index
                 int pFreeBlkIndex = GetFreeBlockNum();
-                pInoPtr->indirBlockPtr = pFreeBlkIndex;
+                pInoPtr->dirBlockPtr[1] = pFreeBlkIndex;
                 PutInode(parent_inode_index, pInoPtr);
+                parent_block_index = pFreeBlkIndex;
+                //set bitmap
                 SetBlockBitmap(pFreeBlkIndex);
+                //update file sys info
                 DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
                 pFileSysInfo->numAllocBlocks++;
                 pFileSysInfo->numFreeBlocks--;
                 DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-
-                char *pIndirBlkPtr = (char *) malloc(BLOCK_SIZE);
-                memset(pIndirBlkPtr, 0, BLOCK_SIZE);
-                int *pIndirPtr = (int *) pIndirBlkPtr;
-                int pFreeBlkIndex2 = GetFreeBlockNum();
-                pIndirPtr[0] = pFreeBlkIndex2;
-                DevWriteBlock(pFreeBlkIndex, (char *) pIndirPtr);
-                SetBlockBitmap(pFreeBlkIndex2);
-                DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                pFileSysInfo->numAllocBlocks++;
-                pFileSysInfo->numFreeBlocks--;
-                DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                parent_block_index = pFreeBlkIndex2;
-                free(pIndirBlkPtr);
+                //printf("myMakeDir()... if full...parent_inode_index = %d, pFreeBlkIndex = %d...\n", parent_inode_index, pFreeBlkIndex);
             } else {
-                char *tmpBlk = (char *) malloc(BLOCK_SIZE);
-                DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
-                int *indirPtr = (int *) tmpBlk;
+                if (pInoPtr->indirBlockPtr == 0) {
+                    //init pDirEntry, pDirPtrIndex
+                    memset(pDirEntry, 0, BLOCK_SIZE);
+                    pDirPtrIndex = 0;
+                    //link indirPtr with parent inoPtr
+                    int pFreeBlkIndex = GetFreeBlockNum();
+                    pInoPtr->indirBlockPtr = pFreeBlkIndex;
+                    PutInode(parent_inode_index, pInoPtr);
+                    //set bitmap
+                    SetBlockBitmap(pFreeBlkIndex);
+                    //update file sys info for indirPtr
+                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    pFileSysInfo->numAllocBlocks++;
+                    pFileSysInfo->numFreeBlocks--;
+                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //printf("myMakeDir()... if full...parent_inode_index = %d, pInoPtr->indirBlockPtr = %d, pFreeBlkIndex = %d...\n", parent_inode_index, pInoPtr->indirBlockPtr ,pFreeBlkIndex);
 
-                for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-                    if (indirPtr[i] == 0) {
-                        memset(pDirEntry, 0, BLOCK_SIZE);
-                        pDirPtrIndex = 0;
-                        int pFreeBlkIndex = GetFreeBlockNum();
-                        indirPtr[i] = pFreeBlkIndex;
-                        DevWriteBlock(pInoPtr->indirBlockPtr, (char *) indirPtr);
-                        parent_block_index = pFreeBlkIndex;
-                        SetBlockBitmap(pFreeBlkIndex);
-                        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                        pFileSysInfo->numAllocBlocks++;
-                        pFileSysInfo->numFreeBlocks--;
-                        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //get & set indirPtr, write to disk
+                    char *pIndirBlkPtr = (char *) malloc(BLOCK_SIZE);
+                    memset(pIndirBlkPtr, 0, BLOCK_SIZE);
+                    int *pIndirPtr = (int *) pIndirBlkPtr;
+                    int pFreeBlkIndex2 = GetFreeBlockNum();
+                    pIndirPtr[0] = pFreeBlkIndex2;
+                    DevWriteBlock(pFreeBlkIndex, (char *) pIndirPtr);
+                    //set bitmap
+                    SetBlockBitmap(pFreeBlkIndex2);
+                    //update file sys info for indirPtr
+                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    pFileSysInfo->numAllocBlocks++;
+                    pFileSysInfo->numFreeBlocks--;
+                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                    //printf("myMakeDir()... if full... parent_inode_index = %d, pFreeBlkIndex2 = %d, pIndirPtr[0] = %d...\n", parent_inode_index, pFreeBlkIndex2, pIndirPtr[0]);
+
+                    //modify parent_block_index
+                    parent_block_index = pFreeBlkIndex2;
+                    //free
+                    free(pIndirBlkPtr);
+                } else {
+                    //get indirPtr, link dirPtr with parent inoPtr, write to disk, modify parent_block_index
+                    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
+                    DevReadBlock(pInoPtr->indirBlockPtr, tmpBlk);
+                    int *indirPtr = (int *) tmpBlk;
+
+                    for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
+                        if (indirPtr[i] == 0) {
+                            //init pDirEntry, pDirPtrIndex
+                            memset(pDirEntry, 0, BLOCK_SIZE);
+                            pDirPtrIndex = 0;
+                            int pFreeBlkIndex = GetFreeBlockNum();
+                            indirPtr[i] = pFreeBlkIndex;
+                            DevWriteBlock(pInoPtr->indirBlockPtr, (char *) indirPtr);
+                            parent_block_index = pFreeBlkIndex;
+                            //set bitmap
+                            SetBlockBitmap(pFreeBlkIndex);
+                            //update file sys info
+                            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                            pFileSysInfo->numAllocBlocks++;
+                            pFileSysInfo->numFreeBlocks--;
+                            DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+                            //printf("myMakeDir()... if full & indirect != 0... indirPtr[%d] = %d, parent_block_index = %d\n", i, indirPtr[i], parent_block_index);
+                        }
                     }
+                    free(tmpBlk);
                 }
             }
+            //free
+            free(pInoPtr);
         }
+        int cFreeInoIndex = GetFreeInodeNum();
+        //int cFreeBlkIndex = GetFreeBlockNum();
+
+        //set parent's DirEntry, write to disk
+        strcpy(pDirEntry[pDirPtrIndex].name, arr[arr_index - 1]);
+        pDirEntry[pDirPtrIndex].inodeNum = cFreeInoIndex;
+        DevWriteBlock(parent_block_index, (char *) pDirEntry);
+        printf("myMakeFile()... pDirEntry[%d].name = %s, ino = %d...\n", pDirPtrIndex, pDirEntry[pDirPtrIndex].name,
+               pDirEntry[pDirPtrIndex].inodeNum);
+        //get created newly created dir's inode, set data, write to disk
+        Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
+        GetInode(cFreeInoIndex, inoPtr);
+        inoPtr->type = FILE_TYPE_FILE;
+        inoPtr->size = 0;
+        inoPtr->dirBlockPtr[0] = 0;
+        inoPtr->dirBlockPtr[1] = 0;
+        inoPtr->indirBlockPtr = 0;
+        PutInode(cFreeInoIndex, inoPtr);
+
+        //set bitmap
+        SetInodeBitmap(cFreeInoIndex);
+
+        //get sys info, write to disk
+        DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+        pFileSysInfo->numAllocInodes++;
+        DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
+
+        //set fd table
+        FileDesc *fdPtr = (FileDesc *) pFileDescTable;
+        int fFdIndex = 0;
+        for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+            //if find free fd index
+            if (fdPtr[i].bUsed == 0) {
+                fFdIndex = i;
+                fdPtr[i].bUsed = 1;
+                fdPtr[i].fileOffset = 0;
+                fdPtr[i].inodeNum = cFreeInoIndex;
+                //printf("fdPtr[%d].bUsed = %d, offset = %d, ino = %d...\n\n", i, fdPtr[i].bUsed, fdPtr[i].fileOffset, fdPtr[i].inodeNum);
+                break;
+            }
+        }
+
         //free
+        free(inoPtr);
+        return fFdIndex;
+    } else {
+        return -1;
     }
-    int cFreeInoIndex = GetFreeInodeNum();
-    //int cFreeBlkIndex = GetFreeBlockNum();
-
-    //set parent's DirEntry, write to disk
-    strcpy(pDirEntry[pDirPtrIndex].name, arr[arr_index - 1]);
-    pDirEntry[pDirPtrIndex].inodeNum = cFreeInoIndex;
-    DevWriteBlock(parent_block_index, (char *) pDirEntry);
-    printf("myMakeFile()... pDirEntry[%d].name = %s, ino = %d...\n", pDirPtrIndex, pDirEntry[pDirPtrIndex].name,
-           pDirEntry[pDirPtrIndex].inodeNum);
-    //get created newly created dir's inode, set data, write to disk
-    Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
-    GetInode(cFreeInoIndex, inoPtr);
-    inoPtr->type = FILE_TYPE_FILE;
-    inoPtr->size = 0;
-    inoPtr->dirBlockPtr[0] = 0;
-    inoPtr->dirBlockPtr[1] = 0;
-    inoPtr->indirBlockPtr = 0;
-    PutInode(cFreeInoIndex, inoPtr);
-
-    SetInodeBitmap(cFreeInoIndex);
-
-    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-    pFileSysInfo->numAllocInodes++;
-    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-
-    FileDesc *fdPtr = (FileDesc *) pFileDescTable;
-    int fFdIndex = 0;
-    for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
-        if (fdPtr[i].bUsed == 0) {
-            fFdIndex = i;
-            fdPtr[i].bUsed = 1;
-            fdPtr[i].fileOffset = 0;
-            fdPtr[i].inodeNum = cFreeInoIndex;
-            break;
-        }
-    }
-
-    //free
-    return fFdIndex;
-
 
 }
 
@@ -343,14 +363,14 @@ int MakeDir(const char *szDirName) {
         strcpy(arr[arr_index++], temp_Ptr);
         temp_Ptr = strtok(NULL, "/");
     }
-    int oh_array_index = 0;
+    int depth = 0;
     DirEntry *returnDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int returnDirPtr_index = 0;
     int return_block_index = 19;
     //find
-    while (findNameNotNULL(arr[oh_array_index], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
-        oh_array_index++;
+    while (findNameNotNULL(arr[depth], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
         inode_index = returnDirPtr[returnDirPtr_index].inodeNum;
+        depth++;
     }
     int temp = findNameNull(inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index);//이거 용도 뭐지
     DirEntry *pDirEntry = returnDirPtr;
@@ -415,7 +435,7 @@ int MakeDir(const char *szDirName) {
         }
 
     }
-    strncpy(pDirEntry[pDirPtrIndex].name, arr[oh_array_index],
+    strncpy(pDirEntry[pDirPtrIndex].name, arr[depth],
             sizeof(pDirEntry[pDirPtrIndex].name) - 1); //strcpy는 안좋다니까 strncpy로 함
     pDirEntry[pDirPtrIndex].inodeNum = GetFreeInodeNum();
     DevWriteBlock(parent_block_index, (char *) pDirEntry);
@@ -458,29 +478,22 @@ int RemoveDir(const char *szDirName) {
         strcpy(arr[arr_index++], temp_Ptr);
         temp_Ptr = strtok(NULL, "/");
     }
-    int oh_array_index = 0;
+    int depth = 0;
     DirEntry *returnDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int returnDirPtr_index = 0;
     int return_block_index = 19;
-    for (oh_array_index; oh_array_index < arr_index ; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
+    for (int i = 0; i < arr_index - 1; i++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        int temp = findNameNotNULL(arr[oh_array_index], inode_index, returnDirPtr, &returnDirPtr_index,
-                                   &return_block_index);
-        if (temp == 0)
+
+    }
+    while (findNameNotNULL(arr[depth], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
+        if (arr_index == depth + 1) {
             break;
 
-
+        }
         inode_index = returnDirPtr[returnDirPtr_index].inodeNum;
+        depth++;
     }
-//    while (findNameNotNULL(arr[oh_array_index], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
-//        if (arr_index == oh_array_index + 1) {
-//            break;
-//
-//        }
-//        oh_array_index++;
-//
-//        inode_index = returnDirPtr[returnDirPtr_index].inodeNum;
-//    }
     DirEntry *pDirEntry = returnDirPtr;
     int pDirPtrIndex = returnDirPtr_index;
     int parent_inode_index = inode_index;
@@ -614,17 +627,17 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
         strcpy(arr[arr_index++], temp_Ptr);
         temp_Ptr = strtok(NULL, "/");
     }
-    int oh_array_index = 0;
+    int depth = 0;
     DirEntry *returnDirPtr = (DirEntry *) malloc(BLOCK_SIZE);
     int returnDirPtr_index = 0;
     int return_block_index = 19;
     //find
-    while (findNameNotNULL(arr[oh_array_index], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
+    while (findNameNotNULL(arr[depth], inode_index, returnDirPtr, &returnDirPtr_index, &return_block_index)) {
 
-        if (arr_index == oh_array_index + 1) {
+        if (arr_index == depth + 1) {
             break;
         }
-        oh_array_index++;
+        depth++;
         inode_index = returnDirPtr[returnDirPtr_index].inodeNum;
     }
     //if found dir name to make

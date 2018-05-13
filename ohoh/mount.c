@@ -81,15 +81,17 @@ void Mount(MountType type) {
         //        free(buf);
         //        free(pInode);
     } else if (type == MT_TYPE_READWRITE) {
-        DevOpenDisk();
+			DevOpenDisk();	
+			
+			//init fd table
+			pFileDescTable = (FileDescTable*)malloc(sizeof(FileDescTable));
+			memset(pFileDescTable, 0, sizeof(FileDescTable));
 
-        pFileDescTable = (FileDescTable *) malloc(sizeof(FileDescTable));
-        memset(pFileDescTable, 0, sizeof(FileDescTable));
-
-        if (pFileSysInfo == NULL) {
-            pFileSysInfo = (FileSysInfo *) malloc(sizeof(FileSysInfo));
-            DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-        }
+			//load file sys info
+			if(pFileSysInfo == NULL){
+				pFileSysInfo = (FileSysInfo*)malloc(BLOCK_SIZE);
+				DevReadBlock(FILESYS_INFO_BLOCK, (char*)pFileSysInfo);
+			}
         //        파일 시스템을 포맷이 아닌, 전원을 켰을 때 파일시스템 사용에 앞서 이루어지는 동작. 실제 파일시스템에서는 복잡한 동작이 이루어진다.
         //                포맷 대신 가상 디스크를 open하는 동작만 수행한다.
     }
