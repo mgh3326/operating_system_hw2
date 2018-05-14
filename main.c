@@ -65,37 +65,37 @@ int main() {
     printf(" ---- Test Case 1 ----\n");
 
     MakeDir("/tmp");
-    MakeDir("/usr");
-    MakeDir("/etc");
-    MakeDir("/home");
-    /* make home directory */
-    for (i = 0; i < 7; i++) {
-        memset(dirName, 0, MAX_NAME_LEN);
-        sprintf(dirName, "/home/user%d", i);
-        MakeDir(dirName);
-    }
-//    /* make etc directory */
-    for (i = 0; i < 24; i++) {
-        memset(dirName, 0, MAX_NAME_LEN);
-        sprintf(dirName, "/etc/dev%d", i);
-        MakeDir(dirName);
-    }
-    ListDirContents("/home");
-    ListDirContents("/etc");
-
-    /* remove subdirectory of etc directory */
-    for (i = 23; i >= 0; i--) {
-        memset(dirName, 0, MAX_NAME_LEN);
-        sprintf(dirName, "/etc/dev%d", i);
-        RemoveDir(dirName);
-    }
-OpenFile("etc/oh",OPEN_FLAG_CREATE);
-    ListDirContents("/etc");
-
-    /* remove subdirectory of root directory except /home */
-    RemoveDir("/etc");
-    RemoveDir("/usr");
-    RemoveDir("/tmp");
+    MakeDir("/usr");//이거부터 안되네
+//    MakeDir("/etc");
+//    MakeDir("/home");
+//    /* make home directory */
+//    for (i = 0; i < 7; i++) {
+//        memset(dirName, 0, MAX_NAME_LEN);
+//        sprintf(dirName, "/home/user%d", i);
+//        MakeDir(dirName);
+//    }
+////    /* make etc directory */
+//    for (i = 0; i < 24; i++) {
+//        memset(dirName, 0, MAX_NAME_LEN);
+//        sprintf(dirName, "/etc/dev%d", i);
+//        MakeDir(dirName);
+//    }
+//    ListDirContents("/home");
+//    ListDirContents("/etc");
+//
+//    /* remove subdirectory of etc directory */
+//    for (i = 23; i >= 0; i--) {
+//        memset(dirName, 0, MAX_NAME_LEN);
+//        sprintf(dirName, "/etc/dev%d", i);
+//        RemoveDir(dirName);
+//    }
+//    OpenFile("etc/oh", OPEN_FLAG_CREATE);
+//    ListDirContents("/etc");
+//
+//    /* remove subdirectory of root directory except /home */
+//    RemoveDir("/etc");
+//    RemoveDir("/usr");
+//    RemoveDir("/tmp");
     PrintInodeBitmap();
     PrintBlockBitmap();
 //    int fd;
@@ -133,4 +133,3 @@ OpenFile("etc/oh",OPEN_FLAG_CREATE);
 
 
 }
-
