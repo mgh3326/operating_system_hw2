@@ -127,5 +127,63 @@ int main() {
     }
     PrintInodeBitmap();
     PrintBlockBitmap();
+    char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$^&*()_";
 
+    char *pohBuffer1 = (char *) malloc(BLOCK_SIZE);
+    char *pBuffer2 = (char *) malloc(BLOCK_SIZE);
+    int cIndex = 0;
+    int cmpCount = 0;
+    int ohfd[4] = {0,};
+
+    MakeDir("/home/test");
+    for (i = 0; i < 4; i++) {
+        memset(fileName, 0, FILENAME_MAX_LEN);
+        sprintf(fileName, "/home/test/file%d", i);
+        ohfd[i] = OpenFile(fileName, OPEN_FLAG_CREATE);
+    }
+
+    for (i = 0; i < 18; i++) {
+        for (int j = 0; j < 4; j++) {
+            char *str = (char *) malloc(BLOCK_SIZE);
+            memset(str, 0, BLOCK_SIZE);
+            for (int k = 0; k < BLOCK_SIZE; k++)
+                str[k] = alphabet[cIndex];
+            WriteFile(ohfd[j], str, BLOCK_SIZE);
+            cIndex++;
+            free(str);
+        }
+    }
+
+    for (i = 0; i < 4; i++)
+        CloseFile(ohfd[i]);
+
+
+    for (i = 0; i < 4; i++) {
+        memset(fileName, 0, FILENAME_MAX_LEN);
+        sprintf(fileName, "/home/test/file%d", i);
+        ohfd[i] = OpenFile(fileName, OPEN_FLAG_READWRITE);
+    }
+
+    cIndex = 0;
+
+    for (i = 0; i < 18; i++) {
+        for (int j = 0; j < 4; j++) {
+            memset(pohBuffer1, 0, BLOCK_SIZE);
+
+            for (int k = 0; k < BLOCK_SIZE; k++)
+                pohBuffer1[k] = alphabet[cIndex];
+
+            memset(pBuffer2, 0, BLOCK_SIZE);
+            ReadFile(ohfd[j], pBuffer2, BLOCK_SIZE);
+            if (strcmp(pohBuffer1, pBuffer2) == 0)
+                cmpCount++;
+            else {
+                printf("TestCase 3 : error!!\n");
+                exit(0);
+            }
+            cIndex++;
+        }
+    }
+    if (cmpCount == 72)
+        printf("TestCase3 : Complete!!!\n");
 }
