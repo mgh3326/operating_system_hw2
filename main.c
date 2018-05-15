@@ -65,39 +65,68 @@ int main() {
     printf(" ---- Test Case 1 ----\n");
 
     MakeDir("/tmp");
-    MakeDir("/usr");//이거부터 안되네
+    MakeDir("/usr");
     MakeDir("/etc");
     MakeDir("/home");
     /* make home directory */
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 6; i++) {
         memset(dirName, 0, MAX_NAME_LEN);
         sprintf(dirName, "/home/user%d", i);
         MakeDir(dirName);
     }
-//    /* make etc directory */
-    for (i = 0; i < 24; i++) {
-        memset(dirName, 0, MAX_NAME_LEN);
-        sprintf(dirName, "/etc/dev%d", i);
-        MakeDir(dirName);
-    }
+    MakeDir("/home/user6");
+
+    /* make etc directory */
+//    for (i = 0; i < 24; i++) {
+//        memset(dirName, 0, MAX_NAME_LEN);
+//        sprintf(dirName, "/etc/dev%d", i);
+//        MakeDir(dirName);
+//    }
     ListDirContents("/home");
     ListDirContents("/etc");
-
-    /* remove subdirectory of etc directory */
+//
+//    /* remove subdirectory of etc directory */
 //    for (i = 23; i >= 0; i--) {
 //        memset(dirName, 0, MAX_NAME_LEN);
 //        sprintf(dirName, "/etc/dev%d", i);
 //        RemoveDir(dirName);
 //    }
 //
-    ListDirContents("/etc");
-
-    /* remove subdirectory of root directory except /home */
+//    ListDirContents("/etc");
+//
+//    /* remove subdirectory of root directory except /home */
 //    RemoveDir("/etc");
 //    RemoveDir("/usr");
 //    RemoveDir("/tmp");
-    PrintInodeBitmap();
-    PrintBlockBitmap();
+//    int fd;
+//    char fileName[FILENAME_MAX_LEN];
+//    char pBuffer1[BLOCK_SIZE];
+//    printf(" ---- Test Case 2 ----\n");
+//
+//
+//    ListDirContents("/home");
+//    /* make home directory */
+//    for (i = 0; i < 7; i++) {
+//
+//        for (int j = 0; j < 7; j++) {
+//
+//            memset(fileName, 0, FILENAME_MAX_LEN);
+//            sprintf(fileName, "/home/user%d/file%d", i, j);
+//            fd = OpenFile(fileName, OPEN_FLAG_CREATE);
+//            memset(pBuffer1, 0, BLOCK_SIZE);
+//            strcpy(pBuffer1, fileName);
+//            WriteFile(fd, pBuffer1, BLOCK_SIZE);
+//
+//            CloseFile(fd);
+//        }
+//    }
+//
+//    for (i = 0; i < 7; i++) {
+//        memset(dirName, 0, MAX_NAME_LEN);
+//        sprintf(dirName, "/home/user%d", i);
+//        ListDirContents(dirName);
+//    }
+
 //    int fd;
 //    char fileName[FILENAME_MAX_LEN];
 //    char pBuffer1[BLOCK_SIZE];
