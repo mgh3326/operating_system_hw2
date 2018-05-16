@@ -19,6 +19,19 @@ typedef enum _UPDATE_FLAG {
     FREE_INODE
 } UPDATE_FLAG;
 
+int initNewFile(int newInodeNum) {
+
+    int i;
+    for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+        if (pFileDescTable->file[i].bUsed == 0) {
+            pFileDescTable->file[i].bUsed = 1;
+            pFileDescTable->file[i].inodeNum = newInodeNum;
+            pFileDescTable->file[i].fileOffset = 0;
+            return i;
+        }
+    }
+    return -1;
+}
 
 int addNewDirEntry(int index, Inode *parentInode) {//openfile, makedir
 
@@ -302,9 +315,13 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
     if (flag == OPEN_FLAG_CREATE) {
 //        addFileDir(arr[arr_index], parentInodeNum);
         int newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
-
-        return -1;
-
+        if (newInodeNum == -1)
+            return -1;
+        int returnValue = initNewFile(newInodeNum);
+        free(pInode);
+        free(curInodeNum);
+        free(parentBlockNum);
+        return returnValue;
     } else if (flag == OPEN_FLAG_READWRITE) {
         int i;
         for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
@@ -314,13 +331,19 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
                 pFileDescTable->file[i].fileOffset = 0;
                 return i;
             }
+            int i;
+            for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+                if (pFileDescTable->file[i].bUsed == 0) {
+                    pFileDescTable->file[i].bUsed = 1;
+                    pFileDescTable->file[i].inodeNum = *curInodeNum;
+                    pFileDescTable->file[i].fileOffset = 0;
+                    return i;
+                }
+            }
+
+
         }
     }
-    free(pInode);
-    free(curInodeNum);
-    free(parentBlockNum);
-    return 0;
-
 }
 
 void addBlockInInode(Inode *fInode, int inodeNum, int writeBlockNum) {
@@ -388,338 +411,107 @@ int getFileBlockNum(Inode *fInode, int offset) {
 }
 
 int WriteFile(int fileDesc, char *pBuffer, int length) {
-//    - open된 파일에 데이터를 저장한다.
-//    • Parameters
-//    ◦ fileDesc[in]: file descriptor.
-//    ◦ pBuffer[in]: 저장할 데이터를 포함하는 메모리의 주소
-//    ◦ length[in]: 저장될 데이터의 길이
-//    - Return
-//    성공하면, 저장된 데이터의 길이 값을 리턴한다. 실패했을때는 -1을 리턴한다.
-    FileDesc *fdTblPtr = (FileDesc *) pFileDescTable;
-    int inoIndex = fdTblPtr[fileDesc].inodeNum;
-    Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
-    GetInode(inoIndex, inoPtr);
-    char *str;
-    int count = 0;
-    int preCount = 0;
-    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
-    int nWrite = 0;
-    int written = 0;
-    int *indirPtrArr = (int *) malloc(BLOCK_SIZE);
-    //append
-    if (fdTblPtr[fileDesc].fileOffset + length <= (NUM_OF_DIRECT_BLOCK_PTR + BLOCK_SIZE / sizeof(int)) * BLOCK_SIZE) {
-        int occupy = fdTblPtr[fileDesc].fileOffset % BLOCK_SIZE;
-        int avail = BLOCK_SIZE - occupy;
-        int lastIndex = floor(fdTblPtr[fileDesc].fileOffset / BLOCK_SIZE);
-        int appendIndex = 0;
-        count = 0, preCount = ceil(fdTblPtr[fileDesc].fileOffset / BLOCK_SIZE);
-        //if remain data to write
-        while (written < length) {
-            //at direct
-            if (lastIndex < NUM_OF_DIRECT_BLOCK_PTR) {
-                //get block index to write
-                if (inoPtr->dirBlockPtr[lastIndex] != 0) appendIndex = inoPtr->dirBlockPtr[lastIndex];
-                else {
-                    appendIndex = GetFreeBlockNum();
-                    //link with inoPtr, write to disk
-                    inoPtr->dirBlockPtr[lastIndex] = appendIndex;
-                    PutInode(inoIndex, inoPtr);
-                    //set block bitmap
-                    SetBlockBitmap(appendIndex);
-                    //update fs info
-                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    pFileSysInfo->numAllocBlocks++;
-                    pFileSysInfo->numFreeBlocks--;
-                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    count++;
-                }
 
-                //if write not full data
-                if (written == 0) {
-                    //set block, write to disk
-                    DevReadBlock(appendIndex, tmpBlk);
-                    str = strncpy(tmpBlk + occupy, pBuffer, avail);
-                    nWrite = avail;
-                    DevWriteBlock(appendIndex, tmpBlk);
-                    //printf("writeFile()...direct first write... occupy = %d, avail = %d, lastIndex = %d, appendIndex = %d, nWrite = %d\n",occupy, avail, lastIndex, appendIndex, nWrite);
-                }
-                    //if write full data
-                else {
-                    //set block, write to disk
-                    str = strncpy(tmpBlk, pBuffer, BLOCK_SIZE);
-                    nWrite = BLOCK_SIZE;
-                    DevWriteBlock(appendIndex, tmpBlk);
-                    //modify dirPtr, write to disk
-                    inoPtr->dirBlockPtr[lastIndex] = appendIndex;
-                    PutInode(inoIndex, inoPtr);
-                    //set bitmap
-                    SetBlockBitmap(appendIndex);
-                    //increase count
-                    count++;
-                    //printf("writeFile()...direct not first write... nWrite = %d\n", nWrite);
-                }
-                //modify offset
-                fdTblPtr[fileDesc].fileOffset += nWrite;
-                //printf("fdTblPtr[%d].fileOffset = %d, nWrite = %d...\n", fileDesc, fdTblPtr[fileDesc].fileOffset, nWrite);
-                //modify lastIndex, written
-                lastIndex++;
-                written += nWrite;
-            }
-                //at indirect
-            else {
-                //if not alloced indirPtr
-                if (inoPtr->indirBlockPtr == 0) {
-                    //link with inoPtr, write to disk
-                    int fBlkIndex = GetFreeBlockNum();
-                    inoPtr->indirBlockPtr = fBlkIndex;
-                    PutInode(inoIndex, inoPtr);
-                    //set bitmap
-                    SetBlockBitmap(fBlkIndex);
-                    //update fs info
-                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    pFileSysInfo->numAllocBlocks++;
-                    pFileSysInfo->numFreeBlocks--;
-                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    count++;
-                }
+    if (fileDesc < 0 || fileDesc > MAX_FD_ENTRY_LEN)
+        return -1;
+    if (pFileDescTable->file[fileDesc].bUsed == 0)
+        return -1;
 
-                //get block index to write
-                DevReadBlock(inoPtr->indirBlockPtr, (char *) indirPtrArr);
-                if (indirPtrArr[lastIndex - 2] != 0) appendIndex = indirPtrArr[lastIndex - 2];
-                else {
-                    appendIndex = GetFreeBlockNum();
-                    //link with indirPtr, write to disk
-                    indirPtrArr[lastIndex - 2] = appendIndex;
-                    DevWriteBlock(inoPtr->indirBlockPtr, (char *) indirPtrArr);
-                    //set block bitmap
-                    SetBlockBitmap(appendIndex);
-                    //update fs info
-                    DevReadBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    pFileSysInfo->numAllocBlocks++;
-                    pFileSysInfo->numFreeBlocks--;
-                    DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
-                    count++;
-                }
-                //if write not full data
-                if (written == 0) {
-                    char *str;
-                    //set block, write to disk
-                    DevReadBlock(appendIndex, tmpBlk);
-                    str = strncpy(tmpBlk + occupy, pBuffer, avail);
-                    nWrite = avail;
-                    DevWriteBlock(appendIndex, tmpBlk);
-                    //printf("writeFile()...indirect first write... occupy = %d, avail = %d, lastIndex = %d, appendIndex = %d, nWrite = %d\n",occupy, avail, lastIndex, appendIndex, nWrite);
-                }
-                    //if write full data
-                else {
-                    //set block, write to disk
-                    strncpy(tmpBlk, pBuffer, BLOCK_SIZE);
-                    nWrite = BLOCK_SIZE;
-                    DevWriteBlock(appendIndex, tmpBlk);
-                    //modify indirPtr, write to disk
-                    indirPtrArr[lastIndex - 2] = appendIndex;
-                    DevWriteBlock(inoPtr->indirBlockPtr, (char *) indirPtrArr);
-                    //set bitmap
-                    SetBlockBitmap(appendIndex);
-                    //increase count
-                    count++;
-                    //printf("writeFile()...indirect not first write... nWrite = %d\n", nWrite);
-                }
-                //modify offset
-                fdTblPtr[fileDesc].fileOffset += nWrite;
-                //printf("fdTblPtr[%d].fileOffset = %d...\n", fileDesc, fdTblPtr[fileDesc].fileOffset);
-                //modify lastIndex, written
-                lastIndex++;
-                written += nWrite;
+    Inode *fInode = (Inode *) malloc(sizeof(Inode));
+    int inodeNum = pFileDescTable->file[fileDesc].inodeNum;
+    int offset = pFileDescTable->file[fileDesc].fileOffset;
+    int stringLength = strlen(pBuffer);
+
+    GetInode(inodeNum, fInode);
+    char *writeBlock = (char *) malloc(BLOCK_SIZE);
+    int writeBlockNum = 0;
+    int flow = 0;
+    int totalWriteSize = 0;
+    int i;
+    int saveFileBlockNum;
+
+    //TODO : File Write Size
+    while (totalWriteSize < length) {
+        flow = offset + totalWriteSize;
+        //if (flow % BLOCK_SIZE == 0) {//no data or full block
+        if (fInode->size % BLOCK_SIZE == 0) { //no data or full block
+            writeBlockNum = GetFreeBlockNum();
+            DevWriteBlock(writeBlockNum, writeBlock);
+            updateFileSysInfo(ALOCATE_BLOCK);
+            SetBlockBitmap(writeBlockNum);
+            addBlockInInode(fInode, inodeNum, writeBlockNum);
+        }
+        saveFileBlockNum = getFileBlockNum(fInode, flow);
+        char saveBlock[BLOCK_SIZE];
+        DevReadBlock(saveFileBlockNum, saveBlock);
+
+        int availableByte = getAvailableByte(flow);
+        int writeStartIndex = BLOCK_SIZE - availableByte;
+        for (i = 0; i < availableByte; i++) {
+            saveBlock[writeStartIndex] = pBuffer[totalWriteSize];
+            writeStartIndex++;
+            totalWriteSize++;
+            if (totalWriteSize >= length || totalWriteSize >= stringLength) {
+                DevWriteBlock(saveFileBlockNum, saveBlock);
+                break;
             }
         }
+        DevWriteBlock(saveFileBlockNum, saveBlock);
+        if (totalWriteSize >= length || totalWriteSize >= stringLength)
+            break;
     }
-        //over-write
-    else {
-        count = 0, preCount = ceil(fdTblPtr[fileDesc].fileOffset / BLOCK_SIZE);
-        fdTblPtr[fileDesc].fileOffset = 0;
-
-        int overIndex = 0;
-        //copy data block
-        //at direct ptr
-        for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
-            //get block index to write
-            if (inoPtr->dirBlockPtr[i] != 0) overIndex = inoPtr->dirBlockPtr[i];
-            else overIndex = GetFreeBlockNum();
-
-            //if remain data to write
-            if ((BLOCK_SIZE * count) < length) {
-                //copy data, write to disk
-                strncpy(tmpBlk, pBuffer + BLOCK_SIZE * count, BLOCK_SIZE);
-                nWrite = BLOCK_SIZE;
-                DevWriteBlock(overIndex, tmpBlk);
-                //if alloc new block
-                if (count >= preCount) {
-                    //modify dirBlkPtr, write to disk
-                    inoPtr->dirBlockPtr[i] = overIndex;
-                    PutInode(inoIndex, inoPtr);
-                    //set bitmap
-                    SetBlockBitmap(overIndex);
-                }
-                //modify offset
-                fdTblPtr[fileDesc].fileOffset += nWrite;
-                //increase count
-                count++;
-            }
-                //if no data to write, write black block
-            else {
-                memset(tmpBlk, 0, BLOCK_SIZE);
-                DevWriteBlock(overIndex, tmpBlk);
-                //reset dirBlkPtr
-                inoPtr->dirBlockPtr[i] = 0;
-                PutInode(inoIndex, inoPtr);
-                //reset bitmap
-                ResetBlockBitmap(overIndex);
-            }
-            written = nWrite;
-        }
-        //at indirect ptr
-        for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-            //get block index to write
-            DevReadBlock(inoPtr->indirBlockPtr, (char *) indirPtrArr);
-
-            //if remain data to write
-            if ((BLOCK_SIZE * count) < length) {
-                //copy data, write to disk
-                strncpy(tmpBlk, pBuffer + BLOCK_SIZE * count, BLOCK_SIZE);
-                nWrite = BLOCK_SIZE;
-                DevWriteBlock(indirPtrArr[i], tmpBlk);
-
-                //if alloc new block
-                if (count >= preCount) {
-                    //modify indirPtr, write to disk
-                    indirPtrArr[i] = GetFreeBlockNum();
-                    DevWriteBlock(indirPtrArr[i], (char *) indirPtrArr);
-                    //set bitmap
-                    SetBlockBitmap(indirPtrArr[i]);
-                }
-                //modify offset
-                fdTblPtr[fileDesc].fileOffset += nWrite;
-                //increase count
-                count++;
-            }
-                //if no data to write, write black block
-            else {
-                memset(tmpBlk, 0, BLOCK_SIZE);
-                DevWriteBlock(indirPtrArr[i], tmpBlk);
-                //reset indirPtrArr[i]
-                indirPtrArr[i] = 0;
-                //reset bitmap
-                ResetBlockBitmap(indirPtrArr[i]);
-            }
-            written = nWrite;
-        }
-    }
-    //update inode
-    PutInode(inoIndex, inoPtr);
-
-    //update file sys info
-    DevReadBlock(FILESYS_INFO_BLOCK, tmpBlk);
-    FileSysInfo *fsInfoPtr = (FileSysInfo *) tmpBlk;
-    fsInfoPtr->numAllocBlocks -= (preCount - count);
-    fsInfoPtr->numFreeBlocks = (BLOCK_SIZE * 8) - fsInfoPtr->numAllocBlocks;
-    DevWriteBlock(0, (char *) fsInfoPtr);
-
-    //free
-    free(inoPtr);
-    free(tmpBlk);
-    free(indirPtrArr);
-    return written;
+    pFileDescTable->file[fileDesc].fileOffset += totalWriteSize;
+    fInode->size += totalWriteSize;
+    PutInode(inodeNum, fInode);
+    free(fInode);
+    free(writeBlock);
+    return totalWriteSize;
 }
 
 int ReadFile(int fileDesc, char *pBuffer, int length) {
-//    - open된 파일에서 데이터를 읽는다.
-//    • Parameters
-//    ◦ fileDesc[in]: file descriptor.
-//    ◦ pBuffer[out]: 읽을 데이터를 저장할 메모리의 주소
-//    ◦ length[in]: 읽을 데이터의 길이
-//    - Return
-//    성공하면, 읽은 데이터의 길이 값을 리턴한다. 실패했을때는 -1을 리턴한다.
-    printf("receive fd = %d...\n", fileDesc);
-    //get inode
-    FileDesc *fdTblPtr = (FileDesc *) pFileDescTable;
-    int inoIndex = fdTblPtr[fileDesc].inodeNum;
-    Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
-    GetInode(inoIndex, inoPtr);
+    Inode *fInode = (Inode *) malloc(sizeof(Inode));
+    int inodeNum = pFileDescTable->file[fileDesc].inodeNum;
+    int offset = pFileDescTable->file[fileDesc].fileOffset;
+    //int offset = 0;
+    GetInode(inodeNum, fInode);
+    int size = fInode->size;
 
-    char *tmpBlk = (char *) malloc(BLOCK_SIZE);
-    int nRead = 0;
-    int read = 0;
-    int *indirPtrArr = (int *) malloc(BLOCK_SIZE);
-    char *str;
-    int occupy = fdTblPtr[fileDesc].fileOffset % BLOCK_SIZE;
-    int avail = BLOCK_SIZE - occupy;
-    int lastIndex = floor(fdTblPtr[fileDesc].fileOffset / BLOCK_SIZE);
-    int readIndex = 0;
-    //if remain data to read
-    while (read < length) {
-        //at direct
-        if (lastIndex < NUM_OF_DIRECT_BLOCK_PTR) {
-            //get block index to write
-            readIndex = inoPtr->dirBlockPtr[lastIndex];
+    char *readBlock = (char *) malloc(BLOCK_SIZE);
+    int readBlockNum = 0;
+    int flow = 0;
+    int totalReadSize = 0;
+    int i;
 
-            //if first read
-            if (read == 0) {
-                //set block, read to buffer
-                DevReadBlock(readIndex, tmpBlk);
-                str = strncpy(pBuffer, tmpBlk + occupy, avail);
-                nRead = avail;
-                printf("read string = %s...\n", str);
+    //TODO : File Write Link with blocks
+    while (totalReadSize < length) {
+        flow = offset + totalReadSize;//이게 잘못된거 같다.
+        if (flow >= size)
+            break;
+        readBlockNum = getFileBlockNum(fInode, flow);
+        DevReadBlock(readBlockNum, readBlock);
+
+        int availableByte = getAvailableByte(flow);
+        int readStartIndex = BLOCK_SIZE - availableByte;
+        char c;
+        for (i = 0; i < availableByte; i++) {
+            c = readBlock[readStartIndex];
+            if (c == 0)
+                break;
+
+            pBuffer[totalReadSize] = c;
+            readStartIndex++;
+            totalReadSize++;
+            if (totalReadSize >= length) {
+                break;
             }
-                //if not first read
-            else {
-                //set block, read to buffer
-                DevReadBlock(readIndex, tmpBlk);
-                str = strncpy(pBuffer + read, tmpBlk, BLOCK_SIZE);
-                nRead = BLOCK_SIZE;
-                printf("read string = %s...\n", str);
-            }
-            //modify offset
-            fdTblPtr[fileDesc].fileOffset += nRead;
-            //modify lastIndex, read
-            lastIndex++;
-            read += nRead;
         }
-            //at indirect
-        else {
-            //get block index to read
-            DevReadBlock(inoPtr->indirBlockPtr, (char *) indirPtrArr);
-            readIndex = indirPtrArr[lastIndex - 2];
-
-            //if first read
-            if (read == 0) {
-                //set block, read to disk
-                DevReadBlock(readIndex, tmpBlk);
-                str = strncpy(pBuffer, tmpBlk + occupy, avail);
-                nRead = avail;
-                printf("read string = %s...\n", str);
-            }
-                //if not first read
-            else {
-                //set block, read to buffer
-                DevReadBlock(readIndex, tmpBlk);
-                str = strncpy(pBuffer + read, tmpBlk, BLOCK_SIZE);
-                nRead = BLOCK_SIZE;
-                printf("read string = %s...\n", str);
-            }
-            //modify offset
-            fdTblPtr[fileDesc].fileOffset += nRead;
-            printf("fdTblPtr[%d].fileOffset = %d...\n", fileDesc, fdTblPtr[fileDesc].fileOffset);
-            //modify lastIndex, written
-            lastIndex++;
-            read += nRead;
-        }
+        if (totalReadSize >= length)
+            break;
     }
-    //free
-    free(inoPtr);
-    free(tmpBlk);
-    //free(indirPtrArr);
-    return read;
+    pFileDescTable->file[fileDesc].fileOffset += totalReadSize;
+    free(fInode);
+    free(readBlock);
+    return totalReadSize;
 }
 
 
@@ -819,7 +611,10 @@ int RemoveFile(const char *szFileName) {
 //    ◦ szFileName[in]: 제거할 파일 이름. 단, 파일 이름은 절대 경로임.
 //                                              - Return
 //    성공하면, 0를 리턴한다. 실패했을때는 -1을 리턴한다. 실패 원인으로 (1) 제거할 파일 이름이 없을 경우, (2) 제거될 파일이 open되어 있을 경우.
+    Inode *pInode = (Inode *) malloc(sizeof(Inode));
+
     int *curInodeNum = (int *) malloc(sizeof(int));
+
     *curInodeNum = 0;
 
     int arr_index = 0;
@@ -834,7 +629,6 @@ int RemoveFile(const char *szFileName) {
         temp_Ptr = strtok(NULL, "/");
     }
     int oh_array_index = 0;
-    Inode *pInode = (Inode *) malloc(sizeof(Inode));
     GetInode(0, pInode);
     int *parentBlockNum = (int *) malloc(sizeof(int));
 
