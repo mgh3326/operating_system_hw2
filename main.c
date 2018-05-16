@@ -215,11 +215,11 @@ void TestCase3(void) {
             memset(pBuffer2, 0, BLOCK_SIZE);
             ReadFile(fd[j], pBuffer2, BLOCK_SIZE);
             if (strcmp(pBuffer1, pBuffer2) == 0) {
-                printf("TestCase 3 : Compelte!! %s\n",pBuffer2);
+                printf("TestCase 3 : Compelte!! %s\n", pBuffer2);
 
                 cmpCount++;
             } else {
-                printf("TestCase 3 : error!!%s\n",pBuffer2);
+                printf("TestCase 3 : error!!%s\n", pBuffer2);
 //                exit(0);
             }
             cIndex++;

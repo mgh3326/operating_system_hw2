@@ -169,8 +169,10 @@ int addNewFileBlock(int index, char *target, Inode *parentInode, int parentInode
             updateFileSysInfo(ALOCATE_INODE);
             SetInodeBitmap(newInodeNum);
             Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
+            memset(newInode, 0, sizeof(newInode));//memory init !!!
             newInode->type = FILE_TYPE_FILE;
             newInode->size = 0;
+
             PutInode(newInodeNum, newInode);
 
             //save parent DE
@@ -312,8 +314,8 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
-    *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
 
+//파일이 있다고 가정하에 하는거여서 문제가 발생하는듯 하다.
     if (flag == OPEN_FLAG_CREATE) {
 //        addFileDir(arr[arr_index], parentInodeNum);
         int newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
@@ -325,6 +327,8 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         free(parentBlockNum);
         return returnValue;
     } else if (flag == OPEN_FLAG_READWRITE) {
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+
         int i;
         for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
             if (pFileDescTable->file[i].bUsed == 0) {
@@ -427,12 +431,9 @@ int WriteFile(int fileDesc, char *pBuffer, int length) {
     GetInode(inodeNum, fInode);
 
 
-
-    if(offset==0)
-    {
-        fInode->dirBlockPtr[0]=0;//이거 쓰래기 값 있어서 넣어줌
-    }
-    
+//    if (offset == 0) {
+//        fInode->dirBlockPtr[0] = 0;//이거 쓰래기 값 있어서 넣어줌
+//    }
 
 
     char *writeBlock = (char *) malloc(BLOCK_SIZE);
