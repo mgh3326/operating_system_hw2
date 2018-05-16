@@ -19,6 +19,19 @@ typedef enum _UPDATE_FLAG {
     FREE_INODE
 } UPDATE_FLAG;
 
+int initNewFile(int newInodeNum) {
+
+    int i;
+    for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+        if (pFileDescTable->file[i].bUsed == 0) {
+            pFileDescTable->file[i].bUsed = 1;
+            pFileDescTable->file[i].inodeNum = newInodeNum;
+            pFileDescTable->file[i].fileOffset = 0;
+            return i;
+        }
+    }
+    return -1;
+}
 
 int addNewDirEntry(int index, Inode *parentInode) {//openfile, makedir
 
@@ -302,9 +315,13 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
     if (flag == OPEN_FLAG_CREATE) {
 //        addFileDir(arr[arr_index], parentInodeNum);
         int newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
-
-        return -1;
-
+        if (newInodeNum == -1)
+            return -1;
+        int returnValue = initNewFile(newInodeNum);
+        free(pInode);
+        free(curInodeNum);
+        free(parentBlockNum);
+        return returnValue;
     } else if (flag == OPEN_FLAG_READWRITE) {
         int i;
         for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
@@ -314,13 +331,19 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
                 pFileDescTable->file[i].fileOffset = 0;
                 return i;
             }
+            int i;
+            for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+                if (pFileDescTable->file[i].bUsed == 0) {
+                    pFileDescTable->file[i].bUsed = 1;
+                    pFileDescTable->file[i].inodeNum = *curInodeNum;
+                    pFileDescTable->file[i].fileOffset = 0;
+                    return i;
+                }
+            }
+
+
         }
     }
-    free(pInode);
-    free(curInodeNum);
-    free(parentBlockNum);
-    return 0;
-
 }
 
 void addBlockInInode(Inode *fInode, int inodeNum, int writeBlockNum) {
@@ -388,13 +411,7 @@ int getFileBlockNum(Inode *fInode, int offset) {
 }
 
 int WriteFile(int fileDesc, char *pBuffer, int length) {
-//    - open된 파일에 데이터를 저장한다.
-//    • Parameters
-//    ◦ fileDesc[in]: file descriptor.
-//    ◦ pBuffer[in]: 저장할 데이터를 포함하는 메모리의 주소
-//    ◦ length[in]: 저장될 데이터의 길이
-//    - Return
-//    성공하면, 저장된 데이터의 길이 값을 리턴한다. 실패했을때는 -1을 리턴한다.
+    //get inode
     FileDesc *fdTblPtr = (FileDesc *) pFileDescTable;
     int inoIndex = fdTblPtr[fileDesc].inodeNum;
     Inode *inoPtr = (Inode *) malloc(sizeof(Inode));
@@ -633,13 +650,6 @@ int WriteFile(int fileDesc, char *pBuffer, int length) {
 }
 
 int ReadFile(int fileDesc, char *pBuffer, int length) {
-//    - open된 파일에서 데이터를 읽는다.
-//    • Parameters
-//    ◦ fileDesc[in]: file descriptor.
-//    ◦ pBuffer[out]: 읽을 데이터를 저장할 메모리의 주소
-//    ◦ length[in]: 읽을 데이터의 길이
-//    - Return
-//    성공하면, 읽은 데이터의 길이 값을 리턴한다. 실패했을때는 -1을 리턴한다.
     printf("receive fd = %d...\n", fileDesc);
     //get inode
     FileDesc *fdTblPtr = (FileDesc *) pFileDescTable;
@@ -716,7 +726,7 @@ int ReadFile(int fileDesc, char *pBuffer, int length) {
         }
     }
     //free
-    free(inoPtr);
+//    free(inoPtr);
     free(tmpBlk);
     //free(indirPtrArr);
     return read;
@@ -724,7 +734,8 @@ int ReadFile(int fileDesc, char *pBuffer, int length) {
 
 
 int CloseFile(int fileDesc) {
-    if (pFileDescTable->file[fileDesc].bUsed == 0) {
+
+    if (pFileDescTable->file[fileDesc].bUsed == 1) {
         pFileDescTable->file[fileDesc].fileOffset = 0;
         pFileDescTable->file[fileDesc].bUsed = 0;
         pFileDescTable->file[fileDesc].inodeNum = 0;
@@ -819,7 +830,10 @@ int RemoveFile(const char *szFileName) {
 //    ◦ szFileName[in]: 제거할 파일 이름. 단, 파일 이름은 절대 경로임.
 //                                              - Return
 //    성공하면, 0를 리턴한다. 실패했을때는 -1을 리턴한다. 실패 원인으로 (1) 제거할 파일 이름이 없을 경우, (2) 제거될 파일이 open되어 있을 경우.
+    Inode *pInode = (Inode *) malloc(sizeof(Inode));
+
     int *curInodeNum = (int *) malloc(sizeof(int));
+
     *curInodeNum = 0;
 
     int arr_index = 0;
@@ -834,7 +848,6 @@ int RemoveFile(const char *szFileName) {
         temp_Ptr = strtok(NULL, "/");
     }
     int oh_array_index = 0;
-    Inode *pInode = (Inode *) malloc(sizeof(Inode));
     GetInode(0, pInode);
     int *parentBlockNum = (int *) malloc(sizeof(int));
 
@@ -1402,4 +1415,3 @@ int GetFreeBlockNum(void) {
     free(buf);
     return -1; //실패 했을 경우
 }
-

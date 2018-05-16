@@ -1,38 +1,82 @@
-#include "fs.h"
-#include "disk.h"
-//#include "Matrix.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <assert.h>
+#include "disk.h"
+#include "fs.h"
+
+
+#define FILENAME_MAX_LEN 30
+#define DIR_NUM_MAX      100
 
 int main() {
     Mount(MT_TYPE_FORMAT);
 
-    int a = MakeDir("/temp");
+    int i, j, k;
+    char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$^&*()_";
+    char fileName[FILENAME_MAX_LEN];
+    char *pBuffer1 = (char *) malloc(BLOCK_SIZE);
+    char *pBuffer2 = (char *) malloc(BLOCK_SIZE);
+    int cIndex = 0;
+    int cmpCount = 0;
+    int fd[4] = {0,};
+    MakeDir("/home");
+    Unmount();
 
-//    int b = MakeDir("/temp/a.c");
-//    printf("MakeDir(/hi) retrun %d, MakeDir(/hi/bye) return %d\n", a, b);
-    printf("----------------------------------------\n");
-    int c = OpenFile("/temp/a.c", OPEN_FLAG_CREATE);
-    printf("OpenFile(/aa) return %d\n", c);
+    Mount(MT_TYPE_READWRITE);
 
-//    int d = OpenFile("/hi/bb", OPEN_FLAG_CREATE);
-//    printf("OpenFile(/hi/bb) return %d\n", d);
-//
-//    int e = OpenFile("/hi/bye/cc", OPEN_FLAG_CREATE);
-//    printf("OpenFile(/hi/bye/cc) return %d\n", e);
+    MakeDir("/home/test");
+    for (i = 0; i < 4; i++) {
+        memset(fileName, 0, FILENAME_MAX_LEN);
+        sprintf(fileName, "/home/test/file%d", i);
+        fd[i] = OpenFile(fileName, OPEN_FLAG_CREATE);
+    }
+
+    for (i = 0; i < 18; i++) {
+        for (j = 0; j < 4; j++) {
+            char *str = (char *) malloc(BLOCK_SIZE);
+            memset(str, 0, BLOCK_SIZE);
+            for (k = 0; k < BLOCK_SIZE; k++)
+                str[k] = alphabet[cIndex];
+            WriteFile(fd[j], str, BLOCK_SIZE);
+            cIndex++;
+            free(str);
+        }
+    }
+
+    for (i = 0; i < 4; i++)
+        CloseFile(fd[i]);
 
 
+    for (i = 0; i < 4; i++) {
+        memset(fileName, 0, FILENAME_MAX_LEN);
+        sprintf(fileName, "/home/test/file%d", i);
+        fd[i] = OpenFile(fileName, OPEN_FLAG_READWRITE);
+    }
 
-    int g = WriteFile(c, "hello", 5);
-    printf("WriteFile(c, \"hello\", 5) return %d\n", g);
+    cIndex = 0;
 
-    char *buffer = (char *) malloc(10);
-    int h = ReadFile(c, buffer, 5);
-    printf("ReadFile(c, %s, 5) return %d\n", buffer, h);
-    int f = CloseFile(c);
-    printf("CloseFile(c) return %d\n", f);
-//    int i = RemoveFile("/aa");
-//    printf("RemoveFile(/aa) return %d\n", i);
-//
-//    printf("RemoveFile(/hi/bb) return %d\n", RemoveFile("/aa"));
+    for (i = 0; i < 18; i++) {
+        for (j = 0; j < 4; j++) {
+            memset(pBuffer1, 0, BLOCK_SIZE);
+
+            for (k = 0; k < BLOCK_SIZE; k++)
+                pBuffer1[k] = alphabet[cIndex];
+
+            memset(pBuffer2, 0, BLOCK_SIZE);
+            ReadFile(fd[j], pBuffer2, BLOCK_SIZE);
+            if (strcmp(pBuffer1, pBuffer2) == 0)
+                cmpCount++;
+            else {
+                printf("TestCase 3 : error!!\n");
+                exit(0);
+            }
+            cIndex++;
+        }
+    }
+    if (cmpCount == 72)
+        printf("TestCase3 : Complete!!!\n");
 }
