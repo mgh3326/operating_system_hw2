@@ -46,17 +46,16 @@ void updateFileSysInfo(UPDATE_FLAG flag) {
     DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
 }
 
-int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num) {//이거는 많이 쓸거 같다
+int goDownDir(char *find_name, Inode *current_inode) {//이거는 많이 쓸거 같다
 
     DirEntry dir_entry[NUM_OF_DIRENT_PER_BLOCK];
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
         DevReadBlock(current_inode->dirBlockPtr[i], (char *) dir_entry);
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(dir_entry[j].name, find_name) == 0) {
-                *current_inode_num = dir_entry[j].inodeNum;
 
                 GetInode(dir_entry[j].inodeNum, current_inode);
-                return *current_inode_num;
+                return dir_entry[j].inodeNum;
             }
         }
     }
@@ -66,10 +65,9 @@ int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num) {//
         DevReadBlock(indirectBlock[i], (char *) dir_entry);
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(dir_entry[j].name, find_name) == 0) {
-                *current_inode_num = dir_entry[j].inodeNum;
 
                 GetInode(dir_entry[j].inodeNum, current_inode);
-                return *current_inode_num;
+                return dir_entry[j].inodeNum;
             }
         }
     }
@@ -283,7 +281,7 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
 
@@ -309,7 +307,7 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         return -1;
 
     } else if (flag == OPEN_FLAG_READWRITE) {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
 
         int i;
         for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
@@ -493,10 +491,10 @@ int RemoveFile(const char *szFileName) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+    *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     int block_number;
 
     if (*current_inode_num == -1) {
@@ -687,7 +685,7 @@ int MakeDir(const char *szDirName) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
     int i, j;
@@ -874,10 +872,10 @@ int RemoveDir(const char *szDirName) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+    *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     if (*current_inode_num == -1) //no such directory
         return -1;
 
@@ -1021,10 +1019,10 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     GetInode(0, pInode);
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+        *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+    *current_inode_num = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     if (parentInodeNum == -1 || *current_inode_num == -1) {
         free(pInode);
         free(current_inode_num);
