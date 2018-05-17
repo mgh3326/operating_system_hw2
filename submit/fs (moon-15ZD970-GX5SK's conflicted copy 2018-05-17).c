@@ -91,8 +91,6 @@ int addNewDirBlock(char *target, int parentInodeNum, int *parentBlockNum, DirEnt
             updateFileSysInfo(ALOCATE_INODE);
             SetInodeBitmap(newInodeNum);
             Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
-            memset(newInode, 0, sizeof(newInode));//memory init !!!
-
             newInode->type = FILE_TYPE_DIR;
             newInode->size = 0;
             PutInode(newInodeNum, newInode);
