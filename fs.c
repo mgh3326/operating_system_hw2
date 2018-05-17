@@ -46,7 +46,7 @@ void updateFileSysInfo(UPDATE_FLAG flag) {
     DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
 }
 
-int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num, int *block_number) {//이거는 많이 쓸거 같다
+int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num) {//이거는 많이 쓸거 같다
 
     DirEntry dir_entry[NUM_OF_DIRENT_PER_BLOCK];
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
@@ -54,7 +54,7 @@ int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num, int
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(dir_entry[j].name, find_name) == 0) {
                 *current_inode_num = dir_entry[j].inodeNum;
-                *block_number = current_inode->dirBlockPtr[i];
+
                 GetInode(dir_entry[j].inodeNum, current_inode);
                 return *current_inode_num;
             }
@@ -67,7 +67,7 @@ int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num, int
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(dir_entry[j].name, find_name) == 0) {
                 *current_inode_num = dir_entry[j].inodeNum;
-                *block_number = indirectBlock[i];
+
                 GetInode(dir_entry[j].inodeNum, current_inode);
                 return *current_inode_num;
             }
@@ -76,7 +76,7 @@ int goDownDir(char *find_name, Inode *current_inode, int *current_inode_num, int
     return -1;
 }
 
-int addNewFileBlock(char *find_name, int *parentBlockNum,
+int addNewFileBlock(char *find_name, int parentBlockNum,
                     DirEntry *parentDE) {
 
 
@@ -98,7 +98,7 @@ int addNewFileBlock(char *find_name, int *parentBlockNum,
             //save parent DE
             strcpy(parentDE[i].name, find_name);
             parentDE[i].inodeNum = newInodeNum;
-            DevWriteBlock((int) parentBlockNum, (char *) parentDE);
+            DevWriteBlock(parentBlockNum, (char *) parentDE);
 
             free(newInode);
 
@@ -217,70 +217,6 @@ int addFileDir(char *find_name, int parentInodeNum) {
     return -1;
 }
 
-int OpenFile(const char *szFileName, OpenFlag flag) {
-    int *current_inode_num;
-    current_inode_num = (int *) malloc(sizeof(int));
-    *current_inode_num = 0;
-
-    int arr_index = 0;
-
-    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
-    char *input_path = (char *) malloc(sizeof(szFileName));
-    strcpy(input_path, szFileName);
-    char *temp_Ptr = strtok(input_path, "/");
-
-    while (temp_Ptr != NULL) {
-        strcpy(arr[arr_index++], temp_Ptr);
-        temp_Ptr = strtok(NULL, "/");
-    }
-    int oh_array_index = 0;
-    Inode *pInode = (Inode *) malloc(sizeof(Inode));
-    GetInode(0, pInode);
-    int *parentBlockNum = (int *) malloc(sizeof(int));
-
-    for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
-    {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
-    }
-    int parentInodeNum = *current_inode_num;
-
-//파일이 있다고 가정하에 하는거여서 문제가 발생하는듯 하다.
-    if (flag == OPEN_FLAG_CREATE) {
-//        addFileDir(arr[arr_index], parentInodeNum);
-        int newInodeNum;
-        newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
-        if (newInodeNum == -1)
-            return -1;
-        //int returnValue = initNewFile(newInodeNum);
-
-        for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
-            if (pFileDescTable->file[i].bUsed == 0) {
-                pFileDescTable->file[i].bUsed = 1;
-                pFileDescTable->file[i].inodeNum = newInodeNum;
-                pFileDescTable->file[i].fileOffset = 0;
-                free(pInode);
-                free(current_inode_num);
-                free(parentBlockNum);
-                return i;
-            }
-        }
-        return -1;
-
-    } else if (flag == OPEN_FLAG_READWRITE) {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
-
-        int i;
-        for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
-            if (pFileDescTable->file[i].bUsed == 0) {
-                pFileDescTable->file[i].bUsed = 1;
-                pFileDescTable->file[i].inodeNum = *current_inode_num;
-                pFileDescTable->file[i].fileOffset = 0;
-                return i;
-            }
-        }
-    }
-}
-
 void addBlockInInode(Inode *fInode, int inodeNum, int writeBlockNum) {
     int i;
     int newBlockNum;
@@ -321,6 +257,68 @@ void addBlockInInode(Inode *fInode, int inodeNum, int writeBlockNum) {
             DevWriteBlock(indirectBlockNum, (char *) indirectBlock);
             free(newFileBlock);
             return;
+        }
+    }
+}
+
+int OpenFile(const char *szFileName, OpenFlag flag) {
+    int *current_inode_num;
+    current_inode_num = (int *) malloc(sizeof(int));
+    *current_inode_num = 0;
+
+    int arr_index = 0;
+
+    char arr[64][MAX_NAME_LEN + 1]; //폴더 갯수 최대 그냥 64로 했음
+    char *input_path = (char *) malloc(sizeof(szFileName));
+    strcpy(input_path, szFileName);
+    char *temp_Ptr = strtok(input_path, "/");
+
+    while (temp_Ptr != NULL) {
+        strcpy(arr[arr_index++], temp_Ptr);
+        temp_Ptr = strtok(NULL, "/");
+    }
+    int oh_array_index = 0;
+    Inode *pInode = (Inode *) malloc(sizeof(Inode));
+    GetInode(0, pInode);
+
+    for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
+    {
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+    }
+    int parentInodeNum = *current_inode_num;
+
+//파일이 있다고 가정하에 하는거여서 문제가 발생하는듯 하다.
+    if (flag == OPEN_FLAG_CREATE) {
+//        addFileDir(arr[arr_index], parentInodeNum);
+        int newInodeNum;
+        newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
+        if (newInodeNum == -1)
+            return -1;
+        //int returnValue = initNewFile(newInodeNum);
+
+        for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+            if (pFileDescTable->file[i].bUsed == 0) {
+                pFileDescTable->file[i].bUsed = 1;
+                pFileDescTable->file[i].inodeNum = newInodeNum;
+                pFileDescTable->file[i].fileOffset = 0;
+                free(pInode);
+                free(current_inode_num);
+                return i;
+            }
+        }
+        return -1;
+
+    } else if (flag == OPEN_FLAG_READWRITE) {
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
+
+        int i;
+        for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+            if (pFileDescTable->file[i].bUsed == 0) {
+                pFileDescTable->file[i].bUsed = 1;
+                pFileDescTable->file[i].inodeNum = *current_inode_num;
+                pFileDescTable->file[i].fileOffset = 0;
+                return i;
+            }
         }
     }
 }
@@ -492,20 +490,18 @@ int RemoveFile(const char *szFileName) {
     }
     int oh_array_index = 0;
     GetInode(0, pInode);
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-    goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     int block_number;
 
     if (*current_inode_num == -1) {
         free(pInode);
         free(current_inode_num);
-        free(parentBlockNum);
         return -1;
     }
 
@@ -516,7 +512,6 @@ int RemoveFile(const char *szFileName) {
         if (pFileDescTable->file[i].inodeNum == *current_inode_num)
             free(pInode);
         free(current_inode_num);
-        free(parentBlockNum);
         return -1;
     }
 
@@ -602,7 +597,6 @@ int RemoveFile(const char *szFileName) {
 
                 free(pInode);
                 free(current_inode_num);
-                free(parentBlockNum);
                 free(fInode);
                 free(pBlock);
                 free(parentInode);
@@ -659,7 +653,6 @@ int RemoveFile(const char *szFileName) {
 
                 free(pInode);
                 free(current_inode_num);
-                free(parentBlockNum);
                 free(fInode);
                 free(pBlock);
                 free(parentInode);
@@ -691,11 +684,10 @@ int MakeDir(const char *szDirName) {
     int oh_array_index = 0;
     Inode *pInode = (Inode *) malloc(sizeof(Inode));
     GetInode(0, pInode);
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
     int i, j;
@@ -879,14 +871,13 @@ int RemoveDir(const char *szDirName) {
     int oh_array_index = 0;
     Inode *pInode = (Inode *) malloc(sizeof(Inode));
     GetInode(0, pInode);
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-    goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     if (*current_inode_num == -1) //no such directory
         return -1;
 
@@ -984,7 +975,6 @@ int RemoveDir(const char *szDirName) {
 
     free(pInode);
     free(current_inode_num);
-    free(parentBlockNum);
     free(pBlock);
     free(parentInode);
     return 0;
@@ -1015,7 +1005,6 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     Inode *pInode = (Inode *) malloc(sizeof(Inode));
     int *current_inode_num = (int *) malloc(sizeof(int));
     *current_inode_num = 0;
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     int arr_index = 0;
 
@@ -1032,14 +1021,13 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     GetInode(0, pInode);
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-         goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+        goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *current_inode_num;
-     goDownDir(arr[oh_array_index], pInode, current_inode_num, parentBlockNum);// 이게 돌아주면 될것 같다
+    goDownDir(arr[oh_array_index], pInode, current_inode_num);// 이게 돌아주면 될것 같다
     if (parentInodeNum == -1 || *current_inode_num == -1) {
         free(pInode);
         free(current_inode_num);
-        free(parentBlockNum);
         return -1;
     }
 
@@ -1063,7 +1051,6 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
 
             free(pInode);
             free(current_inode_num);
-            free(parentBlockNum);
             free(parentInode);
             return count;
         }
@@ -1083,7 +1070,6 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
             if (count >= dirEntrys) {
                 free(pInode);
                 free(current_inode_num);
-                free(parentBlockNum);
                 free(parentInode);
                 return count;
             }
@@ -1091,7 +1077,6 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     }
     free(pInode);
     free(current_inode_num);
-    free(parentBlockNum);
     free(parentInode);
     return count;
 }
