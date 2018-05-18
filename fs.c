@@ -49,20 +49,20 @@ void updateFileSysInfo(UPDATE_FLAG flag) {
     DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
 }
 
-int goDownDir(char *target, Inode *curInode, int *curInodeNum, int *bnum) {//이거는 많이 쓸거 같다
+int goDownDir(char *target, Inode *curInode) {//이거는 많이 쓸거 같다
 
     DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
     //just check direct block
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
-        *bnum = curInode->dirBlockPtr[i];
+//        int bnum = curInode->dirBlockPtr[i];
 
-        DevReadBlock(*bnum, (char *) de);
+        DevReadBlock(curInode->dirBlockPtr[i], (char *) de);
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(de[j].name, target) == 0) {
                 GetInode(de[j].inodeNum, curInode);
-                *bnum = curInode->dirBlockPtr[i];
-                *curInodeNum = de[j].inodeNum;
-                return *curInodeNum;
+
+                return de[j].inodeNum;
+//                return *curInodeNum;
             }
         }
     }
@@ -70,21 +70,21 @@ int goDownDir(char *target, Inode *curInode, int *curInodeNum, int *bnum) {//이
     int indirectBlock[BLOCK_SIZE / sizeof(int)];
     DevReadBlock(inbnum, (char *) indirectBlock);
     for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-        *bnum = indirectBlock[i];
-        DevReadBlock(*bnum, de);
+//        int bnum = indirectBlock[i];
+        DevReadBlock(indirectBlock[i], de);
         for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(de[j].name, target) == 0) {
                 GetInode(de[j].inodeNum, curInode);
-                *bnum = indirectBlock[i];
-                *curInodeNum = de[j].inodeNum;
-                return *curInodeNum;
+
+                return de[j].inodeNum;
+//                return *curInodeNum;
             }
         }
     }
     return -1;
 }
 
-int addNewFileBlock(char *target, int *parentBlockNum,
+int addNewFileBlock(char *target, int parentBlockNum,
                     DirEntry *parentDE) {
 
 
@@ -124,11 +124,6 @@ int addFileDir(char *target, int parentInodeNum) {
     GetInode(parentInodeNum, parentInode);
     DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
 
-//    if (isExistInDir(target, parentInode) == 1)// //필요 없을거 같
-//    { //there is same name file
-//        free(parentInode);
-//        return -1;
-//    }
 
     //travel direct pointers
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
@@ -242,7 +237,7 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
 
@@ -268,7 +263,7 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         return -1;
 
     } else if (flag == OPEN_FLAG_READWRITE) {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
 
         int i;
         for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
@@ -559,10 +554,10 @@ int RemoveFile(const char *szFileName) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
-    *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+    *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     int i;
     int bnum;
 
@@ -670,7 +665,7 @@ int MakeDir(const char *szDirName) {
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
     int i, j;
@@ -879,14 +874,13 @@ int RemoveDir(const char *szDirName) {
     int oh_array_index = 0;
     Inode *pInode = (Inode *) malloc(sizeof(Inode));
     GetInode(0, pInode);
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
-    *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+    *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     if (*curInodeNum == -1) //no such directory
         return -1;
 
@@ -971,7 +965,7 @@ int RemoveDir(const char *szDirName) {
 
     free(pInode);
     free(curInodeNum);
-    free(parentBlockNum);
+
     free(pBlock);
     free(parentInode);
     return 0;
@@ -1002,7 +996,6 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     Inode *pInode = (Inode *) malloc(sizeof(Inode));
     int *curInodeNum = (int *) malloc(sizeof(int));
     *curInodeNum = 0;
-    int *parentBlockNum = (int *) malloc(sizeof(int));
 
     int arr_index = 0;
 
@@ -1019,14 +1012,13 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     GetInode(0, pInode);
     for (oh_array_index; oh_array_index < arr_index - 1; oh_array_index++) // 루트에 만들어지면 여기는 그냥 통과가 되버리네
     {
-        *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+        *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
-    *curInodeNum = goDownDir(arr[oh_array_index], pInode, curInodeNum, parentBlockNum);// 이게 돌아주면 될것 같다
+    *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     if (parentInodeNum == -1 || *curInodeNum == -1) {
         free(pInode);
         free(curInodeNum);
-        free(parentBlockNum);
         return -1;
     }
 
@@ -1050,7 +1042,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
 
             free(pInode);
             free(curInodeNum);
-            free(parentBlockNum);
+
             free(parentInode);
             return count;
         }
@@ -1070,7 +1062,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
             if (count >= dirEntrys) {
                 free(pInode);
                 free(curInodeNum);
-                free(parentBlockNum);
+
                 free(parentInode);
                 return count;
             }
@@ -1078,7 +1070,7 @@ int EnumerateDirStatus(const char *szDirName, DirEntryInfo *pDirEntry, int dirEn
     }
     free(pInode);
     free(curInodeNum);
-    free(parentBlockNum);
+
     free(parentInode);
     return count;
 }
