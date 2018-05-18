@@ -49,45 +49,6 @@ void updateFileSysInfo(UPDATE_FLAG flag) {
     DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
 }
 
-int addNewDirBlock(char *target, int parentInodeNum, int *parentBlockNum, DirEntry *parentDE) {
-//only Makedir
-
-    for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
-        if (strcmp(parentDE[i].name, "") == 0) {
-
-            int newInodeNum = GetFreeInodeNum();
-            updateFileSysInfo(ALOCATE_INODE);
-            SetInodeBitmap(newInodeNum);
-            Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
-            newInode->type = FILE_TYPE_DIR;
-            newInode->size = 0;
-            PutInode(newInodeNum, newInode);
-
-            strcpy(parentDE[i].name, target);
-            parentDE[i].inodeNum = newInodeNum;
-            DevWriteBlock((int) parentBlockNum, (char *) parentDE);
-
-            int newBlockNum = GetFreeBlockNum();
-            SetBlockBitmap(newBlockNum);
-            updateFileSysInfo(ALOCATE_BLOCK);
-            DirEntry newDE[NUM_OF_DIRENT_PER_BLOCK];
-            memset(newDE, 0, BLOCK_SIZE);
-            strcpy(newDE[0].name, ".");
-            newDE[0].inodeNum = newInodeNum;
-            strcpy(newDE[1].name, "..");
-            newDE[1].inodeNum = parentInodeNum;
-            DevWriteBlock(newBlockNum, (char *) newDE);
-            DevWriteBlock((int) parentBlockNum, (char *) parentDE);
-
-            newInode->dirBlockPtr[0] = newBlockNum;
-            PutInode(newInodeNum, newInode);
-            free(newInode);
-            return newBlockNum;
-        }
-    }
-    return -1;
-}
-
 int goDownDir(char *target, Inode *curInode, int *curInodeNum, int *bnum) {//이거는 많이 쓸거 같다
 
     DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
@@ -749,8 +710,44 @@ int MakeDir(const char *szDirName) {
         //add new dir
         for (j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) { //4
             if (strcmp(de[j].name, "") == 0) {
-                newBlockNum = addNewDirBlock(arr[arr_index - 1], parentInodeNum, bnum, de);
-                return 0;
+//                newBlockNum = addNewDirBlock(arr[arr_index - 1], parentInodeNum, bnum, de);
+
+                for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+                    if (strcmp(de[i].name, "") == 0) {
+
+                        int newInodeNum = GetFreeInodeNum();
+                        updateFileSysInfo(ALOCATE_INODE);
+                        SetInodeBitmap(newInodeNum);
+                        Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
+                        newInode->type = FILE_TYPE_DIR;
+                        newInode->size = 0;
+                        PutInode(newInodeNum, newInode);
+
+                        strcpy(de[i].name, arr[arr_index - 1]);
+                        de[i].inodeNum = newInodeNum;
+                        DevWriteBlock(bnum, (char *) de);
+
+                        int newBlockNum = GetFreeBlockNum();
+                        SetBlockBitmap(newBlockNum);
+                        updateFileSysInfo(ALOCATE_BLOCK);
+                        DirEntry newDE[NUM_OF_DIRENT_PER_BLOCK];
+                        memset(newDE, 0, BLOCK_SIZE);
+                        strcpy(newDE[0].name, ".");
+                        newDE[0].inodeNum = newInodeNum;
+                        strcpy(newDE[1].name, "..");
+                        newDE[1].inodeNum = parentInodeNum;
+                        DevWriteBlock(newBlockNum, (char *) newDE);
+                        DevWriteBlock(bnum, (char *) de);
+
+                        newInode->dirBlockPtr[0] = newBlockNum;
+                        PutInode(newInodeNum, newInode);
+                        free(newInode);
+                        return 0;
+                    }
+                }
+                return -1;
+
+
             }
         }
     }
@@ -797,9 +794,44 @@ int MakeDir(const char *szDirName) {
 
         for (j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
             if (strcmp(de[j].name, "") == 0) { //get empty dirent number
-                newBlockNum = addNewDirBlock(arr[arr_index - 1], parentInodeNum, bnum, de);
-                DevWriteBlock(indirectBlockNum, indirectBlock);
-                return 0;
+//                newBlockNum = addNewDirBlock(arr[arr_index - 1], parentInodeNum, bnum, de);
+
+                for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+                    if (strcmp(de[i].name, "") == 0) {
+
+                        int newInodeNum = GetFreeInodeNum();
+                        updateFileSysInfo(ALOCATE_INODE);
+                        SetInodeBitmap(newInodeNum);
+                        Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
+                        newInode->type = FILE_TYPE_DIR;
+                        newInode->size = 0;
+                        PutInode(newInodeNum, newInode);
+
+                        strcpy(de[i].name, arr[arr_index - 1]);
+                        de[i].inodeNum = newInodeNum;
+                        DevWriteBlock(bnum, (char *) de);
+
+                        int newBlockNum = GetFreeBlockNum();
+                        SetBlockBitmap(newBlockNum);
+                        updateFileSysInfo(ALOCATE_BLOCK);
+                        DirEntry newDE[NUM_OF_DIRENT_PER_BLOCK];
+                        memset(newDE, 0, BLOCK_SIZE);
+                        strcpy(newDE[0].name, ".");
+                        newDE[0].inodeNum = newInodeNum;
+                        strcpy(newDE[1].name, "..");
+                        newDE[1].inodeNum = parentInodeNum;
+                        DevWriteBlock(newBlockNum, (char *) newDE);
+                        DevWriteBlock(bnum, (char *) de);
+
+                        newInode->dirBlockPtr[0] = newBlockNum;
+                        PutInode(newInodeNum, newInode);
+                        free(newInode);
+                        DevWriteBlock(indirectBlockNum, indirectBlock);
+                        return 0;
+                    }
+                }
+                return -1;
+
             }
         }
     }
