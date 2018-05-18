@@ -77,157 +77,6 @@ int goDownDir(char *target, Inode *curInode) {//이거는 많이 쓸거 같다
     return -1;
 }
 
-int addFileDir(char *target, int parentInodeNum) {
-
-    int bnum;
-    int newBlockNum;
-    Inode *parentInode = (Inode *) malloc(BLOCK_SIZE);
-    GetInode(parentInodeNum, parentInode);
-    DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
-
-
-    //travel direct pointers
-    for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
-
-        bnum = parentInode->dirBlockPtr[i];
-        if (bnum == 0) { //add new direct pointer and new entry
-
-            newBlockNum = GetFreeBlockNum();
-            updateFileSysInfo(ALOCATE_BLOCK);
-            SetBlockBitmap(newBlockNum);
-
-            //init new Entry Block
-            DirEntry newDirEntry[NUM_OF_DIRENT_PER_BLOCK];
-            memset(newDirEntry, 0, BLOCK_SIZE);
-
-            //link with parent Block
-            parentInode->dirBlockPtr[i] = newBlockNum; //ex) 19
-
-            DevWriteBlock(newBlockNum, newDirEntry);
-
-
-            parentInode->dirBlockPtr[i] = newBlockNum;
-            parentInode->size += BLOCK_SIZE;
-            bnum = parentInode->dirBlockPtr[i];
-            PutInode(parentInodeNum, parentInode);
-        }
-        DevReadBlock(bnum, de);
-
-        //add new dir
-        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) { //4
-            if (strcmp(de[j].name, "") == 0) {
-
-
-                for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
-                    if (strcmp(de[i].name, "") == 0) {
-
-                        //save child DE
-                        int newInodeNum = GetFreeInodeNum();
-                        updateFileSysInfo(ALOCATE_INODE);
-                        SetInodeBitmap(newInodeNum);
-                        Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
-                        memset(newInode, 0, sizeof(newInode));//memory init !!!
-                        newInode->type = FILE_TYPE_FILE;
-                        newInode->size = 0;
-
-                        PutInode(newInodeNum, newInode);
-
-                        //save parent DE
-                        strcpy(de[i].name, target);
-                        de[i].inodeNum = newInodeNum;
-                        DevWriteBlock(bnum, de);
-
-                        free(newInode);
-                        free(parentInode);
-                        return newInodeNum;
-                    }
-                }
-
-
-//                return newInodeNum;
-            }
-        }
-    }
-
-    //--------indirect------
-
-    //travel indirect block
-    int indirectBlockNum = parentInode->indirBlockPtr;
-    if (indirectBlockNum == 0) { //does't allocate indirect Block yet
-        //add new indirect Block
-        newBlockNum = GetFreeBlockNum();
-        updateFileSysInfo(ALOCATE_BLOCK);
-        SetBlockBitmap(newBlockNum);
-        indirectBlockNum = newBlockNum;
-        bnum = newBlockNum;
-        int indirectBlock[NUM_OF_BLOCKS_IN_INDIRECTBLOCK];
-        memset(indirectBlock, 0, BLOCK_SIZE);
-        parentInode->indirBlockPtr = indirectBlockNum;
-        DevWriteBlock(bnum, indirectBlock);
-        PutInode(parentInodeNum, parentInode);
-    }
-
-    int indirectBlock[NUM_OF_BLOCKS_IN_INDIRECTBLOCK];
-    DevReadBlock(indirectBlockNum, indirectBlock);
-
-    for (int i = 0; i < NUM_OF_BLOCKS_IN_INDIRECTBLOCK; i++) {
-        bnum = indirectBlock[i];
-        DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
-
-        if (bnum == 0) { //add new block for indirectBlock
-            int newBlockNum = GetFreeBlockNum();
-            SetBlockBitmap(newBlockNum);
-            updateFileSysInfo(ALOCATE_BLOCK);
-            parentInode->size += BLOCK_SIZE;
-            indirectBlock[i] = newBlockNum;
-            DirEntry *newDirEntry = (DirEntry *) malloc(BLOCK_SIZE);
-            memset(newDirEntry, 0, BLOCK_SIZE);
-            DevWriteBlock(newBlockNum, newDirEntry);
-            DevWriteBlock(indirectBlockNum, indirectBlock);
-            free(newDirEntry);
-        }
-        bnum = indirectBlock[i];
-        DevReadBlock(bnum, de);
-
-        for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
-            if (strcmp(de[j].name, "") == 0) { //get empty dirent number
-//                int newInodeNum = addNewFileBlock(target, bnum, de);
-
-
-                for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
-                    if (strcmp(de[i].name, "") == 0) {
-
-                        //save child DE
-                        int newInodeNum = GetFreeInodeNum();
-                        updateFileSysInfo(ALOCATE_INODE);
-                        SetInodeBitmap(newInodeNum);
-                        Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
-                        memset(newInode, 0, sizeof(newInode));//memory init !!!
-                        newInode->type = FILE_TYPE_FILE;
-                        newInode->size = 0;
-
-                        PutInode(newInodeNum, newInode);
-
-                        //save parent DE
-                        strcpy(de[i].name, target);
-                        de[i].inodeNum = newInodeNum;
-                        DevWriteBlock(bnum, de);
-
-                        free(newInode);
-                        DevWriteBlock(indirectBlockNum, indirectBlock);
-                        free(parentInode);
-                        return newInodeNum;
-                    }
-                }
-
-//                return newInodeNum;
-            }
-        }
-    }
-    free(parentInode);
-    return -1;
-}
-
 int OpenFile(const char *szFileName, OpenFlag flag) {
     int *curInodeNum = (int *) malloc(sizeof(int));
     *curInodeNum = 0;
@@ -253,52 +102,203 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
         *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
     }
     int parentInodeNum = *curInodeNum;
-
-//파일이 있다고 가정하에 하는거여서 문제가 발생하는듯 하다.
-    if (flag == OPEN_FLAG_CREATE) {
-//        addFileDir(arr[arr_index], parentInodeNum);
-        int newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
-        if (newInodeNum == -1)
-            return -1;
-        //int returnValue = initNewFile(newInodeNum);
-
-        for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
-            if (pFileDescTable->file[i].bUsed == 0) {
-                pFileDescTable->file[i].bUsed = 1;
-                pFileDescTable->file[i].inodeNum = newInodeNum;
-                pFileDescTable->file[i].fileOffset = 0;
-                free(pInode);
-                free(curInodeNum);
-                free(parentBlockNum);
-                return i;
-            }
-        }
-        return -1;
-
-    } else if (flag == OPEN_FLAG_READWRITE) {
+    if (flag == OPEN_FLAG_READWRITE) {
         *curInodeNum = goDownDir(arr[oh_array_index], pInode);// 이게 돌아주면 될것 같다
-
-        int i;
-        for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+        for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
             if (pFileDescTable->file[i].bUsed == 0) {
                 pFileDescTable->file[i].bUsed = 1;
                 pFileDescTable->file[i].inodeNum = *curInodeNum;
                 pFileDescTable->file[i].fileOffset = 0;
                 return i;
             }
-//            int i;
-//            for (i = 0; i < MAX_FD_ENTRY_LEN; i++) {
-//                if (pFileDescTable->file[i].bUsed == 0) {
-//                    pFileDescTable->file[i].bUsed = 1;
-//                    pFileDescTable->file[i].inodeNum = *curInodeNum;
-//                    pFileDescTable->file[i].fileOffset = 0;
-//                    return i;
-//                }
-//            }
-
-
         }
+    } else if (flag == OPEN_FLAG_CREATE) {
+//        addFileDir(arr[arr_index], parentInodeNum);
+        //int newInodeNum = addFileDir(arr[arr_index - 1], parentInodeNum);
+
+
+        int bnum;
+        int newBlockNum;
+        Inode *parentInode = (Inode *) malloc(BLOCK_SIZE);
+        GetInode(parentInodeNum, parentInode);
+        DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
+
+
+        //travel direct pointers
+        for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
+
+            bnum = parentInode->dirBlockPtr[i];
+            if (bnum == 0) { //add new direct pointer and new entry
+
+                newBlockNum = GetFreeBlockNum();
+                updateFileSysInfo(ALOCATE_BLOCK);
+                SetBlockBitmap(newBlockNum);
+
+                //init new Entry Block
+                DirEntry newDirEntry[NUM_OF_DIRENT_PER_BLOCK];
+                memset(newDirEntry, 0, BLOCK_SIZE);
+
+                //link with parent Block
+                parentInode->dirBlockPtr[i] = newBlockNum; //ex) 19
+
+                DevWriteBlock(newBlockNum, newDirEntry);
+
+
+                parentInode->dirBlockPtr[i] = newBlockNum;
+                parentInode->size += BLOCK_SIZE;
+                bnum = parentInode->dirBlockPtr[i];
+                PutInode(parentInodeNum, parentInode);
+            }
+            DevReadBlock(bnum, de);
+
+            //add new dir
+            for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) { //4
+                if (strcmp(de[j].name, "") == 0) {
+
+
+                    for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+                        if (strcmp(de[i].name, "") == 0) {
+
+                            //save child DE
+                            int newInodeNum = GetFreeInodeNum();
+                            updateFileSysInfo(ALOCATE_INODE);
+                            SetInodeBitmap(newInodeNum);
+                            Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
+                            memset(newInode, 0, sizeof(newInode));//memory init !!!
+                            newInode->type = FILE_TYPE_FILE;
+                            newInode->size = 0;
+
+                            PutInode(newInodeNum, newInode);
+
+                            //save parent DE
+                            strcpy(de[i].name, arr[arr_index - 1]);
+                            de[i].inodeNum = newInodeNum;
+                            DevWriteBlock(bnum, de);
+
+                            free(newInode);
+                            free(parentInode);
+
+                            for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+                                if (pFileDescTable->file[i].bUsed == 0) {
+                                    pFileDescTable->file[i].bUsed = 1;
+                                    pFileDescTable->file[i].inodeNum = newInodeNum;
+                                    pFileDescTable->file[i].fileOffset = 0;
+                                    free(pInode);
+                                    free(curInodeNum);
+                                    free(parentBlockNum);
+                                    return i;
+                                }
+                            }
+
+                        }
+                    }
+
+
+//                return newInodeNum;
+                }
+            }
+        }
+
+        //--------indirect------
+
+        //travel indirect block
+        int indirectBlockNum = parentInode->indirBlockPtr;
+        if (indirectBlockNum == 0) { //does't allocate indirect Block yet
+            //add new indirect Block
+            newBlockNum = GetFreeBlockNum();
+            updateFileSysInfo(ALOCATE_BLOCK);
+            SetBlockBitmap(newBlockNum);
+            indirectBlockNum = newBlockNum;
+            bnum = newBlockNum;
+            int indirectBlock[NUM_OF_BLOCKS_IN_INDIRECTBLOCK];
+            memset(indirectBlock, 0, BLOCK_SIZE);
+            parentInode->indirBlockPtr = indirectBlockNum;
+            DevWriteBlock(bnum, indirectBlock);
+            PutInode(parentInodeNum, parentInode);
+        }
+
+        int indirectBlock[NUM_OF_BLOCKS_IN_INDIRECTBLOCK];
+        DevReadBlock(indirectBlockNum, indirectBlock);
+
+        for (int i = 0; i < NUM_OF_BLOCKS_IN_INDIRECTBLOCK; i++) {
+            bnum = indirectBlock[i];
+            DirEntry de[NUM_OF_DIRENT_PER_BLOCK];
+
+            if (bnum == 0) { //add new block for indirectBlock
+                int newBlockNum = GetFreeBlockNum();
+                SetBlockBitmap(newBlockNum);
+                updateFileSysInfo(ALOCATE_BLOCK);
+                parentInode->size += BLOCK_SIZE;
+                indirectBlock[i] = newBlockNum;
+                DirEntry *newDirEntry = (DirEntry *) malloc(BLOCK_SIZE);
+                memset(newDirEntry, 0, BLOCK_SIZE);
+                DevWriteBlock(newBlockNum, newDirEntry);
+                DevWriteBlock(indirectBlockNum, indirectBlock);
+                free(newDirEntry);
+            }
+            bnum = indirectBlock[i];
+            DevReadBlock(bnum, de);
+
+            for (int j = 0; j < NUM_OF_DIRENT_PER_BLOCK; j++) {
+                if (strcmp(de[j].name, "") == 0) { //get empty dirent number
+//                int newInodeNum = addNewFileBlock(target, bnum, de);
+
+
+                    for (int i = 0; i < NUM_OF_DIRENT_PER_BLOCK; i++) {
+                        if (strcmp(de[i].name, "") == 0) {
+
+                            //save child DE
+                            int newInodeNum = GetFreeInodeNum();
+                            updateFileSysInfo(ALOCATE_INODE);
+                            SetInodeBitmap(newInodeNum);
+                            Inode *newInode = (Inode *) malloc(BLOCK_SIZE);
+                            memset(newInode, 0, sizeof(newInode));//memory init !!!
+                            newInode->type = FILE_TYPE_FILE;
+                            newInode->size = 0;
+
+                            PutInode(newInodeNum, newInode);
+
+                            //save parent DE
+                            strcpy(de[i].name, arr[arr_index - 1]);
+                            de[i].inodeNum = newInodeNum;
+                            DevWriteBlock(bnum, de);
+
+                            free(newInode);
+                            DevWriteBlock(indirectBlockNum, indirectBlock);
+                            free(parentInode);
+                            for (int i = 0; i < MAX_FD_ENTRY_LEN; i++) {
+                                if (pFileDescTable->file[i].bUsed == 0) {
+                                    pFileDescTable->file[i].bUsed = 1;
+                                    pFileDescTable->file[i].inodeNum = newInodeNum;
+                                    pFileDescTable->file[i].fileOffset = 0;
+                                    free(pInode);
+                                    free(curInodeNum);
+                                    free(parentBlockNum);
+                                    return i;
+                                }
+                            }
+
+                        }
+                    }
+
+//                return newInodeNum;
+                }
+            }
+        }
+        free(parentInode);
+        return -1;
+
+
+
+
+
+        //int returnValue = initNewFile(newInodeNum);
+
+        return -1;
+
     }
+//파일이 있다고 가정하에 하는거여서 문제가 발생하는듯 하다.
+
 }
 
 void addBlockInInode(Inode *file_inode, int inodeNum, int writeBlockNum) {
