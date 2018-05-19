@@ -243,8 +243,7 @@ int OpenFile(const char *szFileName, OpenFlag flag) {
 
 }
 
-void addBlockInInode(Inode *file_inode, int inodeNum, int writeBlockNum) {
-
+void BlockAdd(Inode *file_inode, int inodeNum, int writeBlockNum) {
     for (int i = 0; i < NUM_OF_DIRECT_BLOCK_PTR; i++) {
         if (file_inode->dirBlockPtr[i] == 0) {
             file_inode->dirBlockPtr[i] = writeBlockNum;
@@ -261,16 +260,14 @@ void addBlockInInode(Inode *file_inode, int inodeNum, int writeBlockNum) {
         SetBlockBitmap(GetFreeBlockNum());
         int indirect_block[BLOCK_SIZE / sizeof(int)];
         memset(indirect_block, 0, BLOCK_SIZE);
+
         DevWriteBlock(file_inode->indirBlockPtr, (char *) indirect_block);
         PutInode(inodeNum, file_inode);
     }
     int indirect_block[BLOCK_SIZE / sizeof(int)];
     DevReadBlock(file_inode->indirBlockPtr, (char *) indirect_block);
-    //link with indirect
     for (int i = 0; i < BLOCK_SIZE / sizeof(int); i++) {
-
-
-        if (indirect_block[i] == 0) { //add new block for indirect_block
+        if (indirect_block[i] == 0) {
             char *newFileBlock = (char *) malloc(BLOCK_SIZE);
             indirect_block[i] = writeBlockNum;
             memset(newFileBlock, 0, BLOCK_SIZE);
@@ -307,7 +304,7 @@ int WriteFile(int fileDesc, char *pBuffer, int length) {
             pFileSysInfo->numFreeBlocks--;
             DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
             SetBlockBitmap(writeBlockNum);
-            addBlockInInode(file_inode, pFileDescTable->file[fileDesc].inodeNum, writeBlockNum);
+            BlockAdd(file_inode, pFileDescTable->file[fileDesc].inodeNum, writeBlockNum);
 
 
         }
@@ -512,7 +509,6 @@ int RemoveFile(const char *szFileName) {
             if (directory_entry[j].inodeNum == curInodeNum) {
                 directory_entry[j].inodeNum = 0;
                 memset(directory_entry[j].name, 0, sizeof(directory_entry[j].name));
-                //strcpy(directory_entry[j].name,"");
                 DevWriteBlock(parentInode->dirBlockPtr[i], directory_entry);
 
                 //if number of directory_entry equal 0, also dislink directory_entry with parent;
@@ -757,8 +753,8 @@ int MakeDir(const char *szDirName) {
                         pFileSysInfo->numAllocInodes++;
                         DevWriteBlock(FILESYS_INFO_BLOCK, (char *) pFileSysInfo);
                         Inode *new_inode = (Inode *) malloc(BLOCK_SIZE);
-                        new_inode->size = 0;
                         new_inode->type = FILE_TYPE_DIR;
+                        new_inode->size = 0;
                         PutInode(GetFreeInodeNum(), new_inode);
                         strcpy(directory_entry[k].name, arr[arr_index - 1]);
                         directory_entry[k].inodeNum = GetFreeInodeNum();
